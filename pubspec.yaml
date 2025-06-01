@@ -76,8 +76,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  assets:
-    - assets/images/
-    - assets/icons/
+  # assets:
+    # - assets/images/
+    # - assets/icons/
+
+  # 当你添加实际的图片和图标文件时，取消注释上面的行
 
 
