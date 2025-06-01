@@ -1,0 +1,89 @@
+name: Flutter APK Build and GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # 当有以 'v' 开头的标签被推送到仓库时触发，例如 v1.0.0
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest # 或者 windows-latest, macos-latest
+
+    steps:
+      - name: Checkout Repository # 步骤1: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 获取所有历史，包括标签，以便Git操作
+
+      - name: Setup Flutter # 步骤2: 设置 Flutter 环境
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # 使用 stable 通道
+
+      - name: Get Flutter Version # 步骤3: 获取 Flutter 版本信息 (可选，用于日志)
+        run: flutter --version
+
+      - name: Cache Flutter dependencies # 步骤4: 缓存 Flutter 依赖，加快后续构建
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            build/
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Install dependencies # 步骤5: 安装 Flutter 依赖
+        run: flutter pub get
+
+      - name: Run code generation (if build.yaml exists) # 步骤6: 如果存在 build.yaml，运行代码生成
+        run: |
+          if [ -f build.yaml ]; then
+            echo "Running code generation..."
+            flutter packages pub run build_runner build --delete-conflicting-outputs
+          else
+            echo "build.yaml not found, skipping code generation."
+          fi
+        # 继续执行，即使代码生成失败，类似于您的Python脚本逻辑
+        continue-on-error: true
+
+      - name: Build Android APK # 步骤7: 构建 Release APK
+        run: flutter build apk --release
+
+      - name: List generated APKs # 步骤8: 列出生成的 APK 文件 (用于确认和日志)
+        run: |
+          echo "Listing APK files in release directory:"
+          ls -lh android/app/build/outputs/apk/release/
+          echo "Listing APK files in app bundle directory:"
+          ls -lh android/app/build/outputs/bundle/release/ # 检查是否也生成了aab文件
+
+      - name: Upload APK as artifact # 步骤9: 将 APK 文件作为构建产物上传，方便下载和查看
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: android/app/build/outputs/apk/release/*.apk # 上传所有生成的APK文件
+          # path: build/ # 也可以上传到这个路径下复制的APK，如果您的Python脚本确保了复制
+
+      - name: Get current tag # 步骤10: 从触发事件中获取当前标签作为版本号
+        id: get_tag
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release # 步骤11: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2 # 使用第三方Action来创建Release
+        with:
+          tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
+          name: Release ${{ steps.get_tag.outputs.TAG_NAME }}
+          body: |
+            🎉 New Release ${{ steps.get_tag.outputs.TAG_NAME }}
+            
+            # Release Notes
+            
+            # 下载
+            请从以下附件下载 APK 文件。
+          draft: false # 根据需求设置为 true 或 false
+          prerelease: false # 根据需求设置为 true 或 false
+          files: |
+            android/app/build/outputs/apk/release/*.apk # 上传APK文件到Release资产中
+            # 如果您想上传到build目录下的，也可以使用 build/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 这是一个GitHub Actions 自动提供的Secret，拥有创建Release的权限
