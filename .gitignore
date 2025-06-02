@@ -55,6 +55,8 @@ app.*.map.json
 /android/.gradle/
 /android/local.properties
 /android/key.properties
+/android/*.jks
+/android/*.keystore
 /android/app/google-services.json
 /android/app/src/main/res/values/strings_secrets.xml
 

@@ -1,0 +1,15 @@
+# 签名配置文件示例
+# 复制此文件为 key.properties 并填入您的实际签名信息
+# 注意：key.properties 文件应该被添加到 .gitignore 中，不要提交到版本控制
+
+# 密钥库文件路径（相对于android目录）
+storeFile=../upload-keystore.jks
+
+# 密钥库密码
+storePassword=your_keystore_password
+
+# 密钥别名
+keyAlias=upload
+
+# 密钥密码
+keyPassword=your_key_password

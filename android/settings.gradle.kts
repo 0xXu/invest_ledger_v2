@@ -14,14 +14,14 @@ pluginManagement {
         maven { url = uri("https://maven.aliyun.com/repository/google") }
         google()
         mavenCentral()
-        // gradlePluginPortal() 可选保留，但优先使用上面的镜像
+        gradlePluginPortal() 
     }
 }
 
 plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.3" apply false
-    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0" // 保持不变
+    id("com.android.application") version "8.7.3" apply false // 暂时保持不变
+    id("org.jetbrains.kotlin.android") version "2.1.21" apply false // <-- 更新 KGP 版本
 }
 
 include(":app")
