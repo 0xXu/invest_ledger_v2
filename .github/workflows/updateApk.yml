@@ -1,4 +1,4 @@
-name: Flutter APK Build and GitHub Release
+name: Flutter APK & AAB Build and GitHub Release
 
 on:
   push:
@@ -19,6 +19,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable' # 使用 stable 通道
+          # 如果您需要特定版本的Flutter，可以在这里指定，例如 version: '3.19.6'
 
       - name: Get Flutter Version # 步骤3: 获取 Flutter 版本信息 (可选，用于日志)
         run: flutter --version
@@ -28,7 +29,9 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-            build/
+            # 如果您的项目有特定的构建缓存目录，可以添加，例如：
+            # android/.gradle
+            # android/app/build # 这不是一个好的缓存路径，因为构建产物变动大
           key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-flutter-
@@ -36,39 +39,57 @@ jobs:
       - name: Install dependencies # 步骤5: 安装 Flutter 依赖
         run: flutter pub get
 
-      - name: Run code generation (if build.yaml exists) # 步骤6: 如果存在 build.yaml，运行代码生成
+      - name: Run code generation (if build_runner is used) # 步骤6: 如果存在 build_runner，运行代码生成
+        id: run_codegen # 添加一个ID以便后续判断
         run: |
-          if [ -f build.yaml ]; then
-            echo "Running code generation..."
+          if grep -q "build_runner" pubspec.yaml; then
+            echo "build_runner detected in pubspec.yaml. Running code generation..."
             flutter packages pub run build_runner build --delete-conflicting-outputs
+            echo "::set-output name=codegen_ran::true"
           else
-            echo "build.yaml not found, skipping code generation."
+            echo "build_runner not found in pubspec.yaml, skipping code generation."
+            echo "::set-output name=codegen_ran::false"
           fi
-        # 继续执行，即使代码生成失败，类似于您的Python脚本逻辑
+        # 即使代码生成失败也继续执行，但会记录警告
         continue-on-error: true
 
-      - name: Build Android APK # 步骤7: 构建 Release APK
-        run: flutter build apk --release --verbose
+      - name: Report code generation status # 打印代码生成结果 (可选)
+        if: steps.run_codegen.outputs.codegen_ran == 'true' && failure()
+        run: echo "::warning::Code generation step encountered errors, but the workflow is continuing."
 
-      - name: List generated APKs # 步骤8: 列出生成的 APK 文件 (用于确认和日志)
+      - name: Build Android APK # 步骤7: 构建 Release APK
+        run: flutter build apk --release --verbose # 保持 --verbose 以获取详细日志
+
+      - name: Build Android App Bundle (AAB) # 步骤8: 构建 Release AAB (推荐用于Google Play)
+        run: flutter build appbundle --release --verbose
+        continue-on-error: true # AAB构建失败不影响APK上传，可根据需求调整
+
+      - name: List generated Artifacts # 步骤9: 列出生成的 APK 和 AAB 文件 (用于确认和日志)
         run: |
           echo "Listing APK files in release directory:"
-          ls -lh android/app/build/outputs/apk/release/
-          echo "Listing APK files in app bundle directory:"
-          ls -lh android/app/build/outputs/bundle/release/ # 检查是否也生成了aab文件
+          ls -lh android/app/build/outputs/apk/release/ || echo "APK release directory not found."
+          echo ""
+          echo "Listing AAB files in app bundle release directory:"
+          ls -lh android/app/build/outputs/bundle/release/ || echo "AAB release directory not found."
 
-      - name: Upload APK as artifact # 步骤9: 将 APK 文件作为构建产物上传，方便下载和查看
+      - name: Upload APK as artifact # 步骤10: 将 APK 文件作为构建产物上传，方便下载和查看
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: android/app/build/outputs/apk/release/*.apk # 上传所有生成的APK文件
-          # path: build/ # 也可以上传到这个路径下复制的APK，如果您的Python脚本确保了复制
+          path: android/app/build/outputs/apk/release/invest_ledger-release.apk # 精确指定文件名
 
-      - name: Get current tag # 步骤10: 从触发事件中获取当前标签作为版本号
+      - name: Upload AAB as artifact (Optional) # 步骤11: 将 AAB 文件作为构建产物上传 (可选)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab # AAB通常是这个默认名称
+        continue-on-error: true # 如果没有AAB文件也不报错
+
+      - name: Get current tag # 步骤12: 从触发事件中获取当前标签作为版本号
         id: get_tag
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release # 步骤11: 创建 GitHub Release
+      - name: Create GitHub Release # 步骤13: 创建 GitHub Release
         uses: softprops/action-gh-release@v2 # 使用第三方Action来创建Release
         with:
           tag_name: ${{ steps.get_tag.outputs.TAG_NAME }}
@@ -78,12 +99,11 @@ jobs:
             
             # Release Notes
             
-            # 下载
-            请从以下附件下载 APK 文件。
+            请从以下附件下载 APK 和/或 AAB 文件。
           draft: false # 根据需求设置为 true 或 false
           prerelease: false # 根据需求设置为 true 或 false
           files: |
-            android/app/build/outputs/apk/release/*.apk # 上传APK文件到Release资产中
-            # 如果您想上传到build目录下的，也可以使用 build/*.apk
+            android/app/build/outputs/apk/release/invest_ledger-release.apk # 上传APK文件到Release资产中
+            android/app/build/outputs/bundle/release/app-release.aab # 上传AAB文件到Release资产中 (如果存在)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 这是一个GitHub Actions 自动提供的Secret，拥有创建Release的权限
