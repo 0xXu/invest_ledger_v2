@@ -6,7 +6,7 @@ import '../../data/models/shared_investment.dart';
 import '../../data/models/transaction.dart';
 import '../../data/datasources/local/shared_investment_dao.dart';
 import '../../data/repositories/shared_investment_repository.dart';
-import 'user_provider.dart';
+import '../../core/auth/auth_service.dart';
 import 'transaction_provider.dart';
 
 part 'shared_investment_provider.g.dart';
@@ -27,11 +27,11 @@ SharedInvestmentRepository sharedInvestmentRepository(SharedInvestmentRepository
 class SharedInvestmentNotifier extends _$SharedInvestmentNotifier {
   @override
   Future<List<SharedInvestment>> build() async {
-    final user = ref.watch(userProvider);
-    if (user == null) return [];
+    final authState = ref.watch(authServiceProvider);
+    if (authState.user == null) return [];
 
     final repository = ref.watch(sharedInvestmentRepositoryProvider);
-    return await repository.getSharedInvestmentsByUserId(user.id);
+    return await repository.getSharedInvestmentsByUserId(authState.user!.id);
   }
 
   Future<void> createSharedInvestment({

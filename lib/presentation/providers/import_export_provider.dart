@@ -2,8 +2,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/services/import_export_service.dart';
 import '../../data/models/import_result.dart';
+import '../../core/auth/auth_service.dart';
 import 'transaction_provider.dart';
-import 'user_provider.dart';
 import 'shared_investment_provider.dart';
 import 'investment_goal_provider.dart';
 
@@ -14,7 +14,6 @@ part 'import_export_provider.g.dart';
 ImportExportService importExportService(ImportExportServiceRef ref) {
   return ImportExportService(
     transactionRepository: ref.watch(transactionRepositoryProvider),
-    userRepository: ref.watch(userRepositoryProvider),
     sharedInvestmentRepository: ref.watch(sharedInvestmentRepositoryProvider),
     investmentGoalRepository: ref.watch(investmentGoalRepositoryProvider),
   );
@@ -30,8 +29,8 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
   /// 导出交易记录为CSV
   Future<String?> exportTransactionsToCSV() async {
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       throw Exception('用户未登录');
     }
 
@@ -39,7 +38,7 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
     try {
       final service = ref.read(importExportServiceProvider);
-      final result = await service.exportTransactionsToCSV(user.id);
+      final result = await service.exportTransactionsToCSV(authState.user!.id);
       state = const AsyncValue.data(null);
       return result;
     } catch (e, stack) {
@@ -50,8 +49,8 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
   /// 从CSV导入交易记录
   Future<int> importTransactionsFromCSV() async {
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       throw Exception('用户未登录');
     }
 
@@ -59,7 +58,7 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
     try {
       final service = ref.read(importExportServiceProvider);
-      final result = await service.importTransactionsFromCSV(user.id);
+      final result = await service.importTransactionsFromCSV(authState.user!.id);
 
       // 刷新交易记录
       ref.invalidate(transactionNotifierProvider);
@@ -74,8 +73,8 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
   /// 从TXT导入交易记录
   Future<TxtImportResult> importTransactionsFromTXT() async {
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       throw Exception('用户未登录');
     }
 
@@ -83,7 +82,7 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
     try {
       final service = ref.read(importExportServiceProvider);
-      final result = await service.importTransactionsFromTXT(user.id);
+      final result = await service.importTransactionsFromTXT(authState.user!.id);
 
       // 刷新交易记录
       ref.invalidate(transactionNotifierProvider);
@@ -98,8 +97,8 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
   /// 导出完整数据备份
   Future<String?> exportFullBackup() async {
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       throw Exception('用户未登录');
     }
 
@@ -107,7 +106,7 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
     try {
       final service = ref.read(importExportServiceProvider);
-      final result = await service.exportFullBackup(user.id);
+      final result = await service.exportFullBackup(authState.user!.id);
       state = const AsyncValue.data(null);
       return result;
     } catch (e, stack) {
@@ -139,14 +138,14 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
   /// 执行自动备份
   Future<String> autoBackup() async {
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       throw Exception('用户未登录');
     }
 
     try {
       final service = ref.read(importExportServiceProvider);
-      return await service.autoBackup(user.id);
+      return await service.autoBackup(authState.user!.id);
     } catch (e) {
       rethrow;
     }

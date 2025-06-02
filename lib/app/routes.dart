@@ -16,8 +16,11 @@ import '../presentation/pages/analytics/analytics_page.dart';
 import '../presentation/pages/settings/settings_page.dart';
 import '../presentation/pages/settings/version_settings_page.dart';
 import '../presentation/pages/import_export/import_export_page.dart';
-import '../presentation/pages/auth/user_selection_page.dart';
-import '../presentation/pages/auth/splash_page.dart';
+import '../presentation/auth/login_screen.dart';
+
+import '../presentation/pages/auth/account_switcher_page.dart';
+import '../presentation/auth/reset_password_screen.dart';
+import '../core/auth/auth_guard.dart';
 import '../presentation/pages/dev/dev_tools_page.dart';
 import '../presentation/pages/common/under_development_page.dart';
 import '../presentation/pages/ai_assistant/stock_analysis_page.dart';
@@ -32,20 +35,35 @@ import '../presentation/widgets/main_layout.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/auth/login',
     routes: [
       GoRoute(
         path: '/',
-        name: 'splash',
-        builder: (context, state) => const SplashPage(),
+        name: 'home',
+        redirect: (context, state) => '/auth/login',
       ),
       GoRoute(
-        path: '/user-selection',
-        name: 'user-selection',
-        builder: (context, state) => const UserSelectionPage(),
+        path: '/auth/login',
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+
+      GoRoute(
+        path: '/auth/reset-password',
+        name: 'reset-password',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          final email = extra['email'] as String;
+          final token = extra['token'] as String;
+
+          return ResetPasswordScreen(
+            email: email,
+            token: token,
+          );
+        },
       ),
       ShellRoute(
-        builder: (context, state, child) => MainLayout(child: child),
+        builder: (context, state, child) => AuthGuard(child: MainLayout(child: child)),
         routes: [
           GoRoute(
             path: '/dashboard',
@@ -126,9 +144,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const SettingsPage(),
             routes: [
               GoRoute(
-                path: '/version',
+                path: 'version',
                 name: 'version-settings',
                 builder: (context, state) => const VersionSettingsPage(),
+              ),
+              GoRoute(
+                path: 'accounts',
+                name: 'account-switcher',
+                builder: (context, state) => const AccountSwitcherPage(),
               ),
             ],
           ),

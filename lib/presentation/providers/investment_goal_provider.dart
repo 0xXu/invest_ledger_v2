@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/models/investment_goal.dart';
 import '../../data/repositories/investment_goal_repository.dart';
 import '../../data/datasources/local/investment_goal_dao.dart';
-import 'user_provider.dart';
+import '../../core/auth/auth_service.dart';
 import 'transaction_provider.dart';
 import 'loading_provider.dart';
 
@@ -25,11 +25,11 @@ InvestmentGoalRepository investmentGoalRepository(InvestmentGoalRepositoryRef re
 class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
   @override
   Future<List<InvestmentGoal>> build() async {
-    final user = ref.watch(userProvider);
-    if (user == null) return [];
+    final authState = ref.watch(authServiceProvider);
+    if (authState.user == null) return [];
 
     final repository = ref.read(investmentGoalRepositoryProvider);
-    return await repository.getGoalsByUserId(user.id);
+    return await repository.getGoalsByUserId(authState.user!.id);
   }
 
   Future<void> setGoal({
@@ -40,14 +40,14 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
     required double targetAmount,
     String? description,
   }) async {
-    final user = ref.read(userProvider);
-    if (user == null) return;
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) return;
 
     final loading = ref.read(globalLoadingProvider.notifier);
     await loading.wrap(() async {
       final repository = ref.read(investmentGoalRepositoryProvider);
       await repository.setOrUpdateGoal(
-        userId: user.id,
+        userId: authState.user!.id,
         type: type,
         period: period,
         year: year,
@@ -72,14 +72,14 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
 // Current goal providers
 @riverpod
 Future<InvestmentGoal?> currentMonthlyGoal(CurrentMonthlyGoalRef ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return null;
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return null;
 
   final now = DateTime.now();
   final repository = ref.watch(investmentGoalRepositoryProvider);
 
   return await repository.getCurrentGoal(
-    userId: user.id,
+    userId: authState.user!.id,
     type: GoalType.profit,
     period: GoalPeriod.monthly,
     year: now.year,
@@ -89,14 +89,14 @@ Future<InvestmentGoal?> currentMonthlyGoal(CurrentMonthlyGoalRef ref) async {
 
 @riverpod
 Future<InvestmentGoal?> currentYearlyGoal(CurrentYearlyGoalRef ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return null;
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return null;
 
   final now = DateTime.now();
   final repository = ref.watch(investmentGoalRepositoryProvider);
 
   return await repository.getCurrentGoal(
-    userId: user.id,
+    userId: authState.user!.id,
     type: GoalType.profit,
     period: GoalPeriod.yearly,
     year: now.year,
@@ -106,8 +106,8 @@ Future<InvestmentGoal?> currentYearlyGoal(CurrentYearlyGoalRef ref) async {
 // Goal progress providers
 @riverpod
 Future<Map<String, dynamic>> monthlyGoalProgress(MonthlyGoalProgressRef ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return _emptyProgress();
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return _emptyProgress();
 
   final goal = await ref.watch(currentMonthlyGoalProvider.future);
   if (goal == null) return _emptyProgress();
@@ -118,7 +118,7 @@ Future<Map<String, dynamic>> monthlyGoalProgress(MonthlyGoalProgressRef ref) asy
 
   final transactionRepository = ref.watch(transactionRepositoryProvider);
   final currentStats = await transactionRepository.getTransactionStatsByDateRange(
-    userId: user.id,
+    userId: authState.user!.id,
     startDate: startOfMonth,
     endDate: endOfMonth,
   );
@@ -127,7 +127,7 @@ Future<Map<String, dynamic>> monthlyGoalProgress(MonthlyGoalProgressRef ref) asy
   final lastYearStart = DateTime(now.year - 1, now.month, 1);
   final lastYearEnd = DateTime(now.year - 1, now.month + 1, 0, 23, 59, 59);
   final lastYearStats = await transactionRepository.getTransactionStatsByDateRange(
-    userId: user.id,
+    userId: authState.user!.id,
     startDate: lastYearStart,
     endDate: lastYearEnd,
   );
@@ -137,8 +137,8 @@ Future<Map<String, dynamic>> monthlyGoalProgress(MonthlyGoalProgressRef ref) asy
 
 @riverpod
 Future<Map<String, dynamic>> yearlyGoalProgress(YearlyGoalProgressRef ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return _emptyProgress();
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return _emptyProgress();
 
   final goal = await ref.watch(currentYearlyGoalProvider.future);
   if (goal == null) return _emptyProgress();
@@ -149,7 +149,7 @@ Future<Map<String, dynamic>> yearlyGoalProgress(YearlyGoalProgressRef ref) async
 
   final transactionRepository = ref.watch(transactionRepositoryProvider);
   final currentStats = await transactionRepository.getTransactionStatsByDateRange(
-    userId: user.id,
+    userId: authState.user!.id,
     startDate: startOfYear,
     endDate: endOfYear,
   );
@@ -158,7 +158,7 @@ Future<Map<String, dynamic>> yearlyGoalProgress(YearlyGoalProgressRef ref) async
   final lastYearStart = DateTime(now.year - 1, 1, 1);
   final lastYearEnd = DateTime(now.year - 1, 12, 31, 23, 59, 59);
   final lastYearStats = await transactionRepository.getTransactionStatsByDateRange(
-    userId: user.id,
+    userId: authState.user!.id,
     startDate: lastYearStart,
     endDate: lastYearEnd,
   );

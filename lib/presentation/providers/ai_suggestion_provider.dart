@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/ai_analysis_result.dart';
 import '../../data/repositories/ai_suggestion_repository.dart';
-import 'user_provider.dart';
+import '../../core/auth/auth_service.dart';
 
 // AI建议仓库提供者
 final aiSuggestionRepositoryProvider = Provider<AISuggestionRepository>((ref) {
@@ -16,20 +16,20 @@ final aiServiceStatusProvider = FutureProvider<bool>((ref) async {
 
 // 用户AI建议列表提供者
 final userAISuggestionsProvider = FutureProvider<List<AISuggestion>>((ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return [];
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return [];
 
   final repository = ref.read(aiSuggestionRepositoryProvider);
-  return await repository.getUserSuggestions(user.id);
+  return await repository.getUserSuggestions(authState.user!.id);
 });
 
 // 待处理AI建议提供者
 final pendingAISuggestionsProvider = FutureProvider<List<AISuggestion>>((ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return [];
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return [];
 
   final repository = ref.read(aiSuggestionRepositoryProvider);
-  return await repository.getPendingSuggestions(user.id);
+  return await repository.getPendingSuggestions(authState.user!.id);
 });
 
 // 股票分析状态提供者
@@ -176,11 +176,11 @@ final aiSuggestionNotifierProvider = StateNotifierProvider<AISuggestionNotifier,
 
 // 特定股票建议提供者
 final stockSuggestionsProvider = FutureProvider.family<List<AISuggestion>, String>((ref, stockCode) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return [];
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return [];
 
   final repository = ref.read(aiSuggestionRepositoryProvider);
-  return await repository.getStockSuggestions(user.id, stockCode);
+  return await repository.getStockSuggestions(authState.user!.id, stockCode);
 });
 
 // 建议详情提供者

@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../data/models/ai_analysis_result.dart';
 import '../../providers/ai_suggestion_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../providers/loading_provider.dart';
 import '../../widgets/refresh_button.dart';
 import 'analysis_result_page.dart';
@@ -46,8 +46,8 @@ class _AIAnalysisPageState extends ConsumerState<AIAnalysisPage>
   Future<void> _startAnalysis() async {
     if (_formKey.currentState?.validate() != true) return;
 
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       _showErrorSnackBar('请先登录');
       return;
     }

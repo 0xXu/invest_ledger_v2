@@ -7,8 +7,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../data/models/shared_investment.dart';
 import '../../providers/shared_investment_provider.dart';
-import '../../providers/user_provider.dart';
-import '../../widgets/user_selector_dialog.dart';
+import '../../../core/auth/auth_service.dart';
+import '../../../core/auth/device_users_manager.dart';
+import '../../widgets/device_user_selector_dialog.dart';
 import '../../utils/loading_utils.dart';
 
 class CreateSharedInvestmentPage extends ConsumerStatefulWidget {
@@ -48,12 +49,12 @@ class _CreateSharedInvestmentPageState extends ConsumerState<CreateSharedInvestm
     super.initState();
     // 添加当前用户作为第一个参与者
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final currentUser = ref.read(userNotifierProvider);
-      if (currentUser != null) {
+      final authState = ref.read(authServiceProvider);
+      if (authState.user != null) {
         setState(() {
           _participants.add(ParticipantData(
-            userName: currentUser.name,
-            userId: currentUser.id,
+            userName: authState.user!.email ?? 'Current User',
+            userId: authState.user!.id,
             buyPrice: '',
             shares: '',
           ));
@@ -622,7 +623,8 @@ class _CreateSharedInvestmentPageState extends ConsumerState<CreateSharedInvestm
   }
 
   Widget _buildParticipantItem(int index, ParticipantData participant) {
-    final isCurrentUser = ref.read(userNotifierProvider)?.id == participant.userId;
+    final authState = ref.read(authServiceProvider);
+    final isCurrentUser = authState.user?.id == participant.userId;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -788,13 +790,13 @@ class _CreateSharedInvestmentPageState extends ConsumerState<CreateSharedInvestm
 
     showDialog(
       context: context,
-      builder: (context) => UserSelectorDialog(
+      builder: (context) => DeviceUserSelectorDialog(
         excludeUserIds: excludeUserIds,
         onUsersSelected: (selectedUsers) {
           setState(() {
             for (final user in selectedUsers) {
               _participants.add(ParticipantData(
-                userName: user.name,
+                userName: user.displayName ?? user.email,
                 userId: user.id,
                 buyPrice: '',
                 shares: '',

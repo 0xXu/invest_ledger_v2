@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../data/models/import_result.dart';
 import '../../providers/import_export_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../widgets/refresh_button.dart';
 import '../../widgets/loading_overlay.dart';
 import '../../widgets/animated_card.dart';
@@ -25,8 +25,7 @@ class _ImportExportPageState extends ConsumerState<ImportExportPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final theme = Theme.of(context);
-    final user = ref.watch(userProvider);
+    final authState = ref.watch(authServiceProvider);
     final importExportState = ref.watch(importExportNotifierProvider);
     final autoBackupNotifier = ref.watch(autoBackupNotifierProvider.notifier);
 
@@ -46,7 +45,7 @@ class _ImportExportPageState extends ConsumerState<ImportExportPage>
       ),
       body: LoadingOverlay(
         isLoading: importExportState.isLoading,
-        child: user == null
+        child: authState.user == null
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

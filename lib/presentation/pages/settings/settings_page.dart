@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../providers/theme_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../providers/color_theme_provider.dart';
 import '../../../data/models/color_theme_setting.dart';
 import '../dev/dev_tools_page.dart';
@@ -16,7 +16,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
-    final user = ref.watch(userProvider);
+    final authState = ref.watch(authServiceProvider);
     final colorTheme = ref.watch(colorThemeNotifierProvider);
 
     return Scaffold(
@@ -27,7 +27,7 @@ class SettingsPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // 用户信息卡片
-          if (user != null)
+          if (authState.user != null)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -41,22 +41,37 @@ class SettingsPage extends ConsumerWidget {
                     const SizedBox(height: 16),
                     ListTile(
                       leading: CircleAvatar(
-                        child: Text(user.name[0].toUpperCase()),
+                        child: Text(authState.user!.email![0].toUpperCase()),
                       ),
-                      title: Text(user.name),
-                      subtitle: Text(user.email),
+                      title: Text(authState.user!.email!),
+                      subtitle: const Text('Supabase 用户'),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          ref.read(userProvider.notifier).logout();
-                          context.go('/');
-                        },
-                        icon: const Icon(Icons.logout),
-                        label: const Text('退出登录'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              context.go('/settings/accounts');
+                            },
+                            icon: const Icon(LucideIcons.users),
+                            label: const Text('账号管理'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await ref.read(authServiceProvider.notifier).signOut();
+                              if (context.mounted) {
+                                context.go('/auth/login');
+                              }
+                            },
+                            icon: const Icon(Icons.logout),
+                            label: const Text('退出登录'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

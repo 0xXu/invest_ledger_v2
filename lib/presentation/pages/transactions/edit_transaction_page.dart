@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/models/transaction.dart';
 import '../../providers/transaction_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../utils/loading_utils.dart';
 
 class EditTransactionPage extends ConsumerStatefulWidget {
@@ -367,8 +367,8 @@ class _EditTransactionPageState extends ConsumerState<EditTransactionPage> {
       return;
     }
 
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('用户信息不存在')),
       );

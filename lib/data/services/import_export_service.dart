@@ -11,23 +11,19 @@ import '../models/shared_investment.dart';
 import '../models/investment_goal.dart';
 import '../models/import_result.dart';
 import '../repositories/transaction_repository.dart';
-import '../repositories/user_repository.dart';
 import '../repositories/shared_investment_repository.dart';
 import '../repositories/investment_goal_repository.dart';
 
 class ImportExportService {
   final TransactionRepository _transactionRepository;
-  final UserRepository _userRepository;
   final SharedInvestmentRepository _sharedInvestmentRepository;
   final InvestmentGoalRepository _investmentGoalRepository;
 
   ImportExportService({
     required TransactionRepository transactionRepository,
-    required UserRepository userRepository,
     required SharedInvestmentRepository sharedInvestmentRepository,
     required InvestmentGoalRepository investmentGoalRepository,
   })  : _transactionRepository = transactionRepository,
-        _userRepository = userRepository,
         _sharedInvestmentRepository = sharedInvestmentRepository,
         _investmentGoalRepository = investmentGoalRepository;
 
@@ -443,7 +439,6 @@ class ImportExportService {
   Future<String?> exportFullBackup(String userId) async {
     try {
       // 获取所有数据
-      final user = await _userRepository.getUserById(userId);
       final transactions = await _transactionRepository.getTransactionsByUserId(userId);
       final sharedInvestments = await _sharedInvestmentRepository.getSharedInvestmentsByUserId(userId);
       final investmentGoals = await _investmentGoalRepository.getGoalsByUserId(userId);
@@ -452,7 +447,7 @@ class ImportExportService {
       final backupData = {
         'version': '1.0',
         'exportDate': DateTime.now().toIso8601String(),
-        'user': user?.toJson(),
+        'userId': userId,
         'transactions': transactions.map((t) => t.toJson()).toList(),
         'sharedInvestments': sharedInvestments.map((s) => s.toJson()).toList(),
         'investmentGoals': investmentGoals.map((g) => g.toJson()).toList(),
@@ -576,7 +571,6 @@ class ImportExportService {
       }
 
       // 获取所有数据
-      final user = await _userRepository.getUserById(userId);
       final transactions = await _transactionRepository.getTransactionsByUserId(userId);
       final sharedInvestments = await _sharedInvestmentRepository.getSharedInvestmentsByUserId(userId);
       final investmentGoals = await _investmentGoalRepository.getGoalsByUserId(userId);
@@ -585,7 +579,7 @@ class ImportExportService {
       final backupData = {
         'version': '1.0',
         'exportDate': DateTime.now().toIso8601String(),
-        'user': user?.toJson(),
+        'userId': userId,
         'transactions': transactions.map((t) => t.toJson()).toList(),
         'sharedInvestments': sharedInvestments.map((s) => s.toJson()).toList(),
         'investmentGoals': investmentGoals.map((g) => g.toJson()).toList(),

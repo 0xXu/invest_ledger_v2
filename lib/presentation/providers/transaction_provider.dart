@@ -3,7 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/models/transaction.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../../data/datasources/local/transaction_dao.dart';
-import 'user_provider.dart';
+import '../../core/auth/auth_service.dart';
 import 'loading_provider.dart';
 
 part 'transaction_provider.g.dart';
@@ -24,11 +24,11 @@ TransactionRepository transactionRepository(TransactionRepositoryRef ref) {
 class TransactionNotifier extends _$TransactionNotifier {
   @override
   Future<List<Transaction>> build() async {
-    final user = ref.watch(userProvider);
-    if (user == null) return [];
+    final authState = ref.watch(authServiceProvider);
+    if (authState.user == null) return [];
 
     final repository = ref.read(transactionRepositoryProvider);
-    return await repository.getTransactionsByUserId(user.id);
+    return await repository.getTransactionsByUserId(authState.user!.id);
   }
 
   Future<void> addTransaction(Transaction transaction) async {
@@ -62,8 +62,8 @@ class TransactionNotifier extends _$TransactionNotifier {
 // Transaction stats provider
 @riverpod
 Future<Map<String, dynamic>> transactionStats(TransactionStatsRef ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) {
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) {
     return {
       'totalInvestment': 0.0,
       'totalProfit': 0.0,
@@ -74,7 +74,7 @@ Future<Map<String, dynamic>> transactionStats(TransactionStatsRef ref) async {
   }
 
   final repository = ref.watch(transactionRepositoryProvider);
-  return await repository.getTransactionStats(user.id);
+  return await repository.getTransactionStats(authState.user!.id);
 }
 
 // Individual transaction provider
@@ -101,12 +101,12 @@ Future<List<Transaction>> transactionsByDateRange(
   required DateTime startDate,
   required DateTime endDate,
 }) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return [];
+  final authState = ref.watch(authServiceProvider);
+  if (authState.user == null) return [];
 
   final repository = ref.watch(transactionRepositoryProvider);
   return await repository.getTransactionsByDateRange(
-    userId: user.id,
+    userId: authState.user!.id,
     startDate: startDate,
     endDate: endDate,
   );

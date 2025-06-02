@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/database/database_helper.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 
 class DevToolsPage extends ConsumerStatefulWidget {
   const DevToolsPage({super.key});
@@ -124,26 +124,13 @@ class _DevToolsPageState extends ConsumerState<DevToolsPage> {
         {'name': '王五', 'email': 'wangwu@example.com'},
       ];
 
-      for (final userData in users) {
-        try {
-          await ref.read(userRepositoryProvider).createUser(
-            name: userData['name']!,
-            email: userData['email']!,
-          );
-        } catch (e) {
-          print('创建用户失败: ${userData['name']}, 错误: $e');
-          // 继续创建其他用户
-        }
-      }
-
-      // 刷新用户列表
-      ref.invalidate(allUsersProvider);
+      // 注意：本地用户系统已移除，此功能不再可用
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('示例用户创建成功！请返回登录页面选择用户。'),
-            backgroundColor: Colors.green,
+            content: Text('本地用户系统已移除，此功能不再可用'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
@@ -182,7 +169,7 @@ class _DevToolsPageState extends ConsumerState<DevToolsPage> {
     if (confirmed == true) {
       try {
         // 登出当前用户
-        ref.read(userProvider.notifier).logout();
+        await ref.read(authServiceProvider.notifier).signOut();
 
         // 这里可以添加清除数据库的逻辑
         // 目前只是登出用户
@@ -231,13 +218,10 @@ class _DevToolsPageState extends ConsumerState<DevToolsPage> {
     if (confirmed == true) {
       try {
         // 登出当前用户
-        ref.read(userProvider.notifier).logout();
+        await ref.read(authServiceProvider.notifier).signOut();
 
         // 关闭数据库连接
         await DatabaseHelper.close();
-
-        // 刷新所有provider
-        ref.invalidate(allUsersProvider);
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

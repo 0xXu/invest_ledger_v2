@@ -58,9 +58,19 @@ dependencies:
   # 网络请求
   http: ^1.1.0
 
+  # 云数据库和同步
+  supabase_flutter: ^2.5.6
+  connectivity_plus: ^6.0.3
+
+  # 环境变量管理
+  flutter_dotenv: ^5.1.0
+
   # 版本管理
   package_info_plus: ^8.0.0
   url_launcher: ^6.2.5
+
+  # 深度链接支持
+  app_links: ^6.1.4
 
 dev_dependencies:
   flutter_test:
@@ -76,7 +86,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # assets:
+  assets:
+    - .env
     # - assets/images/
     # - assets/icons/
 

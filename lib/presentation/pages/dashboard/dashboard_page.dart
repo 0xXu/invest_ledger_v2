@@ -5,7 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../data/models/transaction.dart';
 import '../../../data/models/investment_goal.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/investment_goal_provider.dart';
 import '../../providers/color_theme_provider.dart';
@@ -13,6 +13,7 @@ import '../../widgets/stock_investment_card.dart';
 import '../../widgets/goal_progress_card.dart';
 import '../../widgets/refresh_button.dart';
 import '../../widgets/animated_card.dart';
+import '../../widgets/sync_status_widget.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -30,17 +31,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用，用于保活机制
-    final user = ref.watch(userProvider);
+    final authState = ref.watch(authServiceProvider);
     final transactionsAsync = ref.watch(transactionNotifierProvider);
     final statsAsync = ref.watch(transactionStatsProvider);
 
 
 
-    // 如果用户未登录，重新导航到用户选择页面
-    if (user == null) {
+    // 如果用户未登录，重新导航到登录页面
+    if (authState.user == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          context.go('/user-selection');
+          context.go('/auth/login');
         }
       });
       return const Scaffold(
@@ -54,8 +55,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('投资概览 - ${user.name}'),
+        title: Text('投资概览 - ${authState.user!.email}'),
         actions: [
+          // 同步状态组件
+          const SyncStatusWidget(),
+          const SizedBox(width: 8),
           RefreshButton.icon(
             onRefresh: () async {
               // 模拟网络延迟
@@ -69,9 +73,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
             tooltip: '刷新数据',
           ),
           IconButton(
-            onPressed: () {
-              ref.read(userProvider.notifier).logout();
-              context.go('/');
+            onPressed: () async {
+              await ref.read(authServiceProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go('/auth/login');
+              }
             },
             icon: const Icon(LucideIcons.logOut),
             tooltip: '退出登录',

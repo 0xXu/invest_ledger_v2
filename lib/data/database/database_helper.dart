@@ -87,17 +87,6 @@ class DatabaseHelper {
   }
 
   static Future<void> _createTables(Database db) async {
-    // 用户表
-    await db.execute('''
-      CREATE TABLE users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        created_at TEXT NOT NULL,
-        last_login_at TEXT,
-        settings TEXT NOT NULL
-      )
-    ''');
 
     // 交易表
     await db.execute('''
@@ -115,7 +104,6 @@ class DatabaseHelper {
         shared_investment_id TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (shared_investment_id) REFERENCES shared_investments (id)
       )
     ''');
@@ -150,7 +138,6 @@ class DatabaseHelper {
         profit_loss TEXT NOT NULL,
         transaction_id TEXT,
         FOREIGN KEY (shared_investment_id) REFERENCES shared_investments (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (transaction_id) REFERENCES transactions (id) ON DELETE SET NULL
       )
     ''');
@@ -164,7 +151,6 @@ class DatabaseHelper {
         color TEXT NOT NULL,
         description TEXT,
         created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         UNIQUE(user_id, name)
       )
     ''');
@@ -181,8 +167,7 @@ class DatabaseHelper {
         target_amount TEXT NOT NULL,
         description TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        updated_at TEXT
       )
     ''');
 
@@ -197,7 +182,6 @@ class DatabaseHelper {
         transaction_id TEXT,
         status TEXT NOT NULL DEFAULT 'pending',
         user_notes TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
         FOREIGN KEY (transaction_id) REFERENCES transactions (id) ON DELETE SET NULL
       )
     ''');

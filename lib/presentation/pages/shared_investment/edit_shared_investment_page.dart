@@ -6,7 +6,7 @@ import 'package:decimal/decimal.dart';
 
 import '../../../data/models/shared_investment.dart';
 import '../../providers/shared_investment_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../widgets/loading_overlay.dart';
 import '../../widgets/animated_card.dart';
 

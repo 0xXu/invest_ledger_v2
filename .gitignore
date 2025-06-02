@@ -212,3 +212,49 @@ integration_test/screenshots/
 *.mp4
 *.avi
 *.mkv
+
+# Authentication pages deployment files
+# These are meant to be deployed separately to hosting services
+/auth-pages/
+/deploy-auth-pages.md
+
+# Supabase configuration
+# Keep these in version control but be careful with sensitive data
+# /lib/core/config/supabase_config.dart
+
+
+# Deployment and hosting related
+netlify.toml
+_redirects
+.netlify/
+
+# Documentation and guides that are project-specific
+# Uncomment if you don't want to track these
+# /docs/deployment/
+# /docs/setup/
+
+# IDE and editor specific files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+*.code-workspace
+
+# Flutter web build (if you're not deploying web version)
+/build/web/
+
+# Local development certificates
+*.pem
+*.crt
+*.key
+certificates/
+
+# Local configuration overrides
+config.local.json
+settings.local.json
+
+# Performance profiling
+*.trace
+*.profile
+
+# Dart analysis cache
+.dart_tool/package_config_subset

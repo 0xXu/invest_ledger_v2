@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../data/models/transaction.dart';
-import '../../providers/user_provider.dart';
+import '../../../core/auth/auth_service.dart';
 import '../../providers/transaction_provider.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
@@ -259,8 +259,8 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   Future<void> _saveTransaction() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = ref.read(userProvider);
-    if (user == null) {
+    final authState = ref.read(authServiceProvider);
+    if (authState.user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('用户未登录')),
       );
@@ -270,7 +270,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     try {
       final transaction = Transaction(
         id: const Uuid().v4(),
-        userId: user.id,
+        userId: authState.user!.id,
         date: _selectedDate,
         stockCode: _stockCodeController.text.trim(),
         stockName: _stockNameController.text.trim(),
