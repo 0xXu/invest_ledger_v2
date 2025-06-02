@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.invest_ledger"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "27.0.12077973" // 你可以根据需要保留或更新此 NDK 版本
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -20,31 +20,26 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        
         applicationId = "com.example.invest_ledger"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 修改后的部分：设置 APK 文件的基础名称
+        setProperty("archivesBaseName", "invest_ledger")
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 
-    // 设置APK文件名
-    applicationVariants.all {
-        outputs.all {
-            val outputImpl = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl.outputFileName = "invest_ledger-release.apk"
-        }
-    }
+    
 }
 
 flutter {
