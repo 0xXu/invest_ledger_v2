@@ -3,7 +3,7 @@
 class AppConfig {
   // GitHub仓库配置
   static const String githubOwner = '0xXu'; // 替换为你的GitHub用户名
-  static const String githubRepo = 'invest_ledger'; // 替换为你的仓库名
+  static const String githubRepo = 'invest_ledger-flutter'; // 替换为你的仓库名
   static const String githubApiUrl = 'https://api.github.com/repos';
   
   // 应用信息
@@ -59,7 +59,7 @@ class AppConfig {
   /// 验证GitHub配置是否有效
   static bool isGithubConfigValid() {
     final config = getCurrentGithubConfig();
-    return config['0xXu']?.isNotEmpty == true && 
-           config['invest_ledger']?.isNotEmpty == true;
+    return config['owner']?.isNotEmpty == true &&
+           config['repo']?.isNotEmpty == true;
   }
 }

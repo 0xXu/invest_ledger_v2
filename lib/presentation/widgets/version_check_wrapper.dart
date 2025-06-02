@@ -36,23 +36,11 @@ class _VersionCheckWrapperState extends ConsumerState<VersionCheckWrapper> {
       // 检查是否需要自动检查更新
       final repository = ref.read(versionRepositoryProvider);
       final shouldCheck = await repository.shouldAutoCheck();
-      
+
       if (!shouldCheck) return;
 
       // 执行版本检查
       await ref.read(versionCheckProvider.notifier).autoCheckForUpdates();
-      
-      // 监听检查结果
-      ref.listen<AsyncValue<dynamic>>(
-        versionCheckProvider,
-        (previous, next) {
-          next.whenData((result) {
-            if (result.hasUpdate && result.latestVersion != null) {
-              _showUpdateDialogIfNeeded(result);
-            }
-          });
-        },
-      );
     } catch (e) {
       // 静默处理错误，不影响应用正常启动
       debugPrint('版本检查失败: $e');
@@ -86,6 +74,18 @@ class _VersionCheckWrapperState extends ConsumerState<VersionCheckWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    // 在 build 方法中监听版本检查结果
+    ref.listen<AsyncValue<dynamic>>(
+      versionCheckProvider,
+      (previous, next) {
+        next.whenData((result) {
+          if (result.hasUpdate && result.latestVersion != null) {
+            _showUpdateDialogIfNeeded(result);
+          }
+        });
+      },
+    );
+
     return widget.child;
   }
 }
