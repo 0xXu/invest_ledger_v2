@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Build Android APK # 步骤7: 构建 Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --verbose
 
       - name: List generated APKs # 步骤8: 列出生成的 APK 文件 (用于确认和日志)
         run: |
