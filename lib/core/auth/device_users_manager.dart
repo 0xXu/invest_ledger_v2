@@ -107,20 +107,24 @@ class DeviceUsersManager {
       final deviceUser = DeviceUser(
         id: user.id,
         email: user.email ?? '',
-        displayName: user.userMetadata?['display_name'] as String?,
+        displayName: user.userMetadata?['display_name'] as String? ??
+                    user.userMetadata?['name'] as String?,
         addedAt: existingIndex == -1 ? DateTime.now() : users[existingIndex].addedAt,
         lastLoginAt: DateTime.now(),
       );
 
       if (existingIndex != -1) {
-        // 更新现有用户的最后登录时间
-        users[existingIndex] = deviceUser;
+        // 更新现有用户的最后登录时间（只有时间差超过1分钟才更新，避免重复）
+        final timeDiff = DateTime.now().difference(users[existingIndex].lastLoginAt ?? DateTime.now());
+        if (timeDiff.inMinutes > 1) {
+          users[existingIndex] = deviceUser;
+          await _saveUsers(users);
+        }
       } else {
         // 添加新用户
         users.add(deviceUser);
+        await _saveUsers(users);
       }
-
-      await _saveUsers(users);
     } catch (e) {
       print('添加设备用户失败: $e');
     }

@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import 'auth_state.dart';
 import 'device_users_manager.dart';
+import 'secure_credentials_manager.dart';
 
 class AuthService extends StateNotifier<AppAuthState> {
   AuthService() : super(const AppAuthState()) {
@@ -85,6 +86,7 @@ class AuthService extends StateNotifier<AppAuthState> {
   Future<void> signUpWithEmail({
     required String email,
     required String password,
+    String? displayName,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -93,6 +95,7 @@ class AuthService extends StateNotifier<AppAuthState> {
         email: email,
         password: password,
         emailRedirectTo: 'https://cosmic-pixie-347a3c.netlify.app/callback',
+        data: displayName != null ? {'display_name': displayName, 'name': displayName} : null,
       );
 
       if (response.user != null) {
@@ -138,6 +141,7 @@ class AuthService extends StateNotifier<AppAuthState> {
   Future<void> signInWithEmail({
     required String email,
     required String password,
+    bool saveCredentials = true,
   }) async {
     debugPrint('开始登录流程，邮箱: $email');
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -162,6 +166,23 @@ class AuthService extends StateNotifier<AppAuthState> {
           );
         } else {
           debugPrint('用户登录成功，设置状态为 authenticated');
+
+          // 保存凭据（如果启用）
+          if (saveCredentials) {
+            final credentialsManager = SecureCredentialsManager.instance;
+            final isQuickLoginEnabled = await credentialsManager.isQuickLoginEnabled();
+
+            if (isQuickLoginEnabled) {
+              await credentialsManager.saveCredentials(
+                userId: user.id,
+                email: email,
+                password: password,
+              );
+              await credentialsManager.setLastLoginUser(user.id);
+              debugPrint('✅ 用户凭据已保存');
+            }
+          }
+
           state = AppAuthState(
             status: AuthStatus.authenticated,
             user: user,

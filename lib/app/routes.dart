@@ -2,6 +2,9 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../core/auth/auth_service.dart';
+import '../core/auth/auth_state.dart';
+
 import '../presentation/pages/dashboard/dashboard_page.dart';
 import '../presentation/pages/transactions/transactions_page.dart';
 import '../presentation/pages/transactions/add_transaction_page.dart';
@@ -19,6 +22,7 @@ import '../presentation/pages/import_export/import_export_page.dart';
 import '../presentation/auth/login_screen.dart';
 
 import '../presentation/pages/auth/account_switcher_page.dart';
+import '../presentation/pages/auth/quick_login_page.dart';
 import '../presentation/auth/reset_password_screen.dart';
 import '../core/auth/auth_guard.dart';
 import '../presentation/pages/dev/dev_tools_page.dart';
@@ -35,12 +39,27 @@ import '../presentation/widgets/main_layout.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/auth/login',
+    initialLocation: '/auth/quick-login',
     routes: [
       GoRoute(
         path: '/',
         name: 'home',
-        redirect: (context, state) => '/auth/login',
+        redirect: (context, state) {
+          // 检查认证状态，如果已登录则跳转到仪表板，否则跳转到快速登录
+          final container = ProviderScope.containerOf(context);
+          final authState = container.read(authServiceProvider);
+
+          if (authState.status == AuthStatus.authenticated) {
+            return '/dashboard';
+          } else {
+            return '/auth/quick-login';
+          }
+        },
+      ),
+      GoRoute(
+        path: '/auth/quick-login',
+        name: 'quick-login',
+        builder: (context, state) => const QuickLoginPage(),
       ),
       GoRoute(
         path: '/auth/login',

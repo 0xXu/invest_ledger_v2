@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,11 +9,19 @@ import '../../providers/color_theme_provider.dart';
 import '../../../data/models/color_theme_setting.dart';
 import '../dev/dev_tools_page.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  int _developerTapCount = 0;
+  bool _showDevTools = false;
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     final authState = ref.watch(authServiceProvider);
     final colorTheme = ref.watch(colorThemeNotifierProvider);
@@ -92,70 +99,13 @@ class SettingsPage extends ConsumerWidget {
                   ListTile(
                     title: const Text('主题模式'),
                     subtitle: Text(_getThemeModeText(themeMode)),
-                    trailing: DropdownButton<ThemeMode>(
-                      value: themeMode,
-                      onChanged: (ThemeMode? newMode) {
-                        if (newMode != null) {
-                          ref.read(themeProvider.notifier).setThemeMode(newMode);
-                        }
-                      },
-                      items: const [
-                        DropdownMenuItem(
-                          value: ThemeMode.system,
-                          child: Text('跟随系统'),
-                        ),
-                        DropdownMenuItem(
-                          value: ThemeMode.light,
-                          child: Text('浅色模式'),
-                        ),
-                        DropdownMenuItem(
-                          value: ThemeMode.dark,
-                          child: Text('深色模式'),
-                        ),
-                      ],
-                    ),
+                    trailing: _buildThemeModeDropdown(themeMode),
                   ),
                   const Divider(),
                   ListTile(
                     title: const Text('盈亏颜色'),
                     subtitle: Text(colorTheme.colorScheme.description),
-                    trailing: DropdownButton<ProfitLossColorScheme>(
-                      value: colorTheme.colorScheme,
-                      onChanged: (ProfitLossColorScheme? newScheme) {
-                        if (newScheme != null) {
-                          ref.read(colorThemeNotifierProvider.notifier).setColorScheme(newScheme);
-                        }
-                      },
-                      items: ProfitLossColorScheme.values.map((scheme) {
-                        return DropdownMenuItem(
-                          value: scheme,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: scheme.profitColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: scheme.lossColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(scheme.displayName),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                    trailing: _buildColorSchemeDropdown(colorTheme.colorScheme),
                   ),
                 ],
               ),
@@ -190,8 +140,8 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // 开发工具 (仅在调试模式下显示)
-          if (kDebugMode)
+          // 开发工具 (隐藏功能，需要点击8次开发者才显示)
+          if (_showDevTools)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -220,7 +170,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
             ),
-          if (kDebugMode) const SizedBox(height: 16),
+          if (_showDevTools) const SizedBox(height: 16),
 
           Card(
             child: Padding(
@@ -243,9 +193,10 @@ class SettingsPage extends ConsumerWidget {
                     },
                   ),
                   const Divider(),
-                  const ListTile(
-                    title: Text('开发者'),
-                    subtitle: Text('0xXu'),
+                  ListTile(
+                    title: const Text('开发者'),
+                    subtitle: const Text('0xXu'),
+                    onTap: _onDeveloperTap,
                   ),
                 ],
               ),
@@ -254,6 +205,127 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// 构建主题模式下拉框
+  Widget _buildThemeModeDropdown(ThemeMode currentMode) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<ThemeMode>(
+          value: currentMode,
+          isDense: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          onChanged: (ThemeMode? newMode) {
+            if (newMode != null) {
+              ref.read(themeProvider.notifier).setThemeMode(newMode);
+            }
+          },
+          items: const [
+            DropdownMenuItem(
+              value: ThemeMode.system,
+              child: Text('跟随系统'),
+            ),
+            DropdownMenuItem(
+              value: ThemeMode.light,
+              child: Text('浅色模式'),
+            ),
+            DropdownMenuItem(
+              value: ThemeMode.dark,
+              child: Text('深色模式'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建颜色方案下拉框
+  Widget _buildColorSchemeDropdown(ProfitLossColorScheme currentScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<ProfitLossColorScheme>(
+          value: currentScheme,
+          isDense: true,
+          icon: const Icon(Icons.keyboard_arrow_down),
+          onChanged: (ProfitLossColorScheme? newScheme) {
+            if (newScheme != null) {
+              ref.read(colorThemeNotifierProvider.notifier).setColorScheme(newScheme);
+            }
+          },
+          items: ProfitLossColorScheme.values.map((scheme) {
+            return DropdownMenuItem(
+              value: scheme,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: scheme.profitColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: scheme.lossColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(scheme.displayName),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  /// 开发者点击事件
+  void _onDeveloperTap() {
+    setState(() {
+      _developerTapCount++;
+    });
+
+    if (_developerTapCount >= 8) {
+      setState(() {
+        _showDevTools = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🎉 开发工具已解锁！'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // 给用户一些提示
+      final remaining = 8 - _developerTapCount;
+      if (_developerTapCount >= 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('还需要点击 $remaining 次...'),
+            duration: const Duration(milliseconds: 800),
+          ),
+        );
+      }
+    }
   }
 
   String _getThemeModeText(ThemeMode mode) {

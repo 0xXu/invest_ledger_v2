@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/supabase_config.dart';
 import '../../models/transaction.dart' as models;
@@ -9,17 +10,25 @@ class SupabaseTransactionDao {
   // 获取用户的所有交易记录
   Future<List<models.Transaction>> getTransactionsByUserId(String userId) async {
     try {
+      debugPrint('🔍 尝试从 Supabase 获取交易记录，用户ID: $userId');
+      debugPrint('🔍 表名: $_tableName');
+      debugPrint('🔍 当前用户: ${SupabaseConfig.currentUser?.id}');
+
       final response = await _client
           .from(_tableName)
           .select()
           .eq('user_id', userId)
           .eq('is_deleted', false)
           .order('created_at', ascending: false);
-      
+
+      debugPrint('✅ Supabase 响应成功，记录数量: ${(response as List).length}');
+
       return (response as List)
-          .map((json) => models.Transaction.fromJson(json))
+          .map((json) => models.Transaction.fromJson(_supabaseJsonToTransaction(json)))
           .toList();
     } catch (e) {
+      debugPrint('❌ Supabase 请求失败: $e');
+      debugPrint('❌ 错误类型: ${e.runtimeType}');
       throw Exception('获取交易记录失败: $e');
     }
   }
@@ -34,7 +43,7 @@ class SupabaseTransactionDao {
           .select()
           .single();
       
-      return models.Transaction.fromJson(response);
+      return models.Transaction.fromJson(_supabaseJsonToTransaction(response));
     } catch (e) {
       throw Exception('创建交易记录失败: $e');
     }
@@ -53,7 +62,7 @@ class SupabaseTransactionDao {
           .select()
           .single();
       
-      return models.Transaction.fromJson(response);
+      return models.Transaction.fromJson(_supabaseJsonToTransaction(response));
     } catch (e) {
       throw Exception('更新交易记录失败: $e');
     }
@@ -88,7 +97,7 @@ class SupabaseTransactionDao {
           .order('updated_at', ascending: false);
       
       return (response as List)
-          .map((json) => models.Transaction.fromJson(json))
+          .map((json) => models.Transaction.fromJson(_supabaseJsonToTransaction(json)))
           .toList();
     } catch (e) {
       throw Exception('获取修改记录失败: $e');
@@ -110,13 +119,32 @@ class SupabaseTransactionDao {
           .select();
       
       return (response as List)
-          .map((json) => models.Transaction.fromJson(json))
+          .map((json) => models.Transaction.fromJson(_supabaseJsonToTransaction(json)))
           .toList();
     } catch (e) {
       throw Exception('批量同步失败: $e');
     }
   }
   
+  // 将 Supabase JSON 格式转换为 Transaction 模型格式
+  Map<String, dynamic> _supabaseJsonToTransaction(Map<String, dynamic> supabaseJson) {
+    return {
+      'id': supabaseJson['id'],
+      'userId': supabaseJson['user_id'],
+      'date': supabaseJson['date'],
+      'stockCode': supabaseJson['stock_code'],
+      'stockName': supabaseJson['stock_name'],
+      'amount': supabaseJson['amount'].toString(),
+      'unitPrice': supabaseJson['unit_price'].toString(),
+      'profitLoss': supabaseJson['profit_loss'].toString(),
+      'tags': supabaseJson['tags'] ?? [],
+      'notes': supabaseJson['notes'],
+      'sharedInvestmentId': supabaseJson['shared_investment_id'],
+      'createdAt': supabaseJson['created_at'],
+      'updatedAt': supabaseJson['updated_at'],
+    };
+  }
+
   // 将 Transaction 模型转换为 Supabase JSON 格式
   Map<String, dynamic> _transactionToSupabaseJson(models.Transaction transaction) {
     return {

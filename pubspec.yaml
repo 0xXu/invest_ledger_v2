@@ -45,6 +45,7 @@ dependencies:
   json_annotation: ^4.9.0
   freezed_annotation: ^2.4.1
   uuid: ^4.2.1
+  crypto: ^3.0.3
 
   # 图标库
   cupertino_icons: ^1.0.8

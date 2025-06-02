@@ -18,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
 
   bool _isSignUp = false;
 
@@ -26,6 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -43,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await authService.signUpWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          displayName: _nameController.text.trim(),
         );
 
         if (mounted) {
@@ -126,6 +129,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 32),
+
+              // 用户名字段（仅在注册时显示）
+              if (_isSignUp) ...[
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: '用户名',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                    helperText: '用于显示的用户名',
+                  ),
+                  validator: (value) {
+                    if (!_isSignUp) return null;
+                    if (value == null || value.isEmpty) {
+                      return '请输入用户名';
+                    }
+                    if (value.length < 2) {
+                      return '用户名至少需要2个字符';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -212,6 +240,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   setState(() {
                     _isSignUp = !_isSignUp;
                     _confirmPasswordController.clear();
+                    _nameController.clear();
                   });
                 },
                 child: Text(_isSignUp ? '已有账户？点击登录' : '没有账户？点击注册'),
