@@ -22,7 +22,7 @@ on:
         default: false
 
 env:
-  FLUTTER_VERSION: '3.24.3'
+  FLUTTER_VERSION: '3.32.0'
   JAVA_VERSION: '17'
 
 jobs:
@@ -45,7 +45,6 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
         cache: true
 
     - name: 📦 获取依赖
@@ -112,7 +111,6 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         flutter-version: ${{ env.FLUTTER_VERSION }}
-        channel: 'stable'
         cache: true
 
     - name: 📦 获取依赖
