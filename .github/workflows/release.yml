@@ -52,6 +52,9 @@ jobs:
         flutter pub get
         flutter pub run build_runner build --delete-conflicting-outputs
 
+    - name: Clean Flutter build artifacts 
+      run: flutter clean
+
     - name: 🔧 创建环境配置文件
       run: |
         echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
@@ -68,6 +71,12 @@ jobs:
     - name: 🏗️ 构建 APK
       run: |
         flutter build apk --release --split-per-abi
+
+    - name: Upload APK artifacts 
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-apk
+        path: build/app/outputs/flutter-apk/*.apk
 
     - name: 📱 构建 App Bundle
       run: |
