@@ -23,7 +23,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.32.0'
-  JAVA_VERSION: '23'
+  JAVA_VERSION: '17'
 
 jobs:
   # 构建Android APK
