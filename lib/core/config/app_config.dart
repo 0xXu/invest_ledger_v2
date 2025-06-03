@@ -3,7 +3,7 @@
 class AppConfig {
   // GitHub仓库配置
   static const String githubOwner = '0xXu'; // 替换为你的GitHub用户名
-  static const String githubRepo = 'invest_ledger-flutter'; // 替换为你的仓库名
+  static const String githubRepo = 'invest_ledger_v2'; // 替换为你的仓库名
   static const String githubApiUrl = 'https://api.github.com/repos';
   
   // 应用信息
