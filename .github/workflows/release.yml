@@ -78,9 +78,6 @@ jobs:
         name: release-apk
         path: build/app/outputs/flutter-apk/*.apk
 
-    - name: 📱 构建 App Bundle
-      run: |
-        flutter build appbundle --release
 
     - name: 📋 生成构建信息
       run: |
