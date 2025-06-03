@@ -11,13 +11,13 @@ allprojects {
 subprojects {
     tasks.withType<JavaCompile> {
         options.compilerArgs.addAll(listOf("-Xlint:-options"))
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+        sourceCompatibility = "23"
+        targetCompatibility = "23"
     }
 
     tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         kotlinOptions {
-            jvmTarget = "17"
+            jvmTarget = "23"
         }
     }
 }
