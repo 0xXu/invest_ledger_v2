@@ -142,7 +142,7 @@ jobs:
   # 创建GitHub Release
   create-release:
     name: 🎉 创建 GitHub Release
-    needs: [build-android, build-windows, build-linux]
+    needs: [build-android, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
@@ -196,7 +196,6 @@ jobs:
 
         - **Android**: APK文件支持 ARM64、ARMv7、x86_64 架构
         - **Windows**: 支持 x64 架构
-        - **Linux**: 支持 x64 架构
 
         ## 📦 下载说明
 
@@ -213,7 +212,6 @@ jobs:
 
         - **Android**: Android 5.0 (API 21) 或更高版本
         - **Windows**: Windows 10 或更高版本
-        - **Linux**: Ubuntu 18.04 或更高版本 (或等效发行版)
 
         ## 📝 更新日志
 
