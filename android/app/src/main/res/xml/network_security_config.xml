@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- 允许Supabase域名的HTTPS连接 -->
+        <domain includeSubdomains="true">supabase.co</domain>
+        <domain includeSubdomains="true">gsybdnhgsrkrflcmvfhx.supabase.co</domain>
+        
+        <!-- 开发环境 - 允许localhost -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+    
+    <!-- 默认配置 - 允许所有HTTPS连接 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
