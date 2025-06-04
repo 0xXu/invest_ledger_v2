@@ -81,13 +81,20 @@ jobs:
           cd $GITHUB_WORKSPACE
           ./android/gradlew -p android assembleRelease
 
-          mkdir -p ../build/app/outputs/flutter-apk/
-          cp app/build/outputs/apk/release/*.apk ../build/app/outputs/flutter-apk/
+          # 列出实际输出目录以进行调试
+          echo "检查 APK 输出位置："
+          find android -name "*.apk" -type f
 
-          echo "Generated APKs:"
-          ls -l app/build/outputs/apk/release/
-          echo "Copied to Flutter build dir:"
-          ls -l ../build/app/outputs/flutter-apk/
+          # 创建输出目录
+          mkdir -p build/app/outputs/flutter-apk/
+
+          # 使用正确的路径复制 APK
+          find android -name "*.apk" -type f -exec cp {} build/app/outputs/flutter-apk/ \;
+
+          echo "生成的 APK："
+          ls -l android/app/build/outputs/apk/release/ || echo "android/app/build/outputs/apk/release/ 中没有 APK"
+          echo "复制到 Flutter 构建目录："
+          ls -l build/app/outputs/flutter-apk/
 
       - name: 📋 生成构建信息
         run: |
@@ -110,7 +117,6 @@ jobs:
           name: android-apks
           path: |
             build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
             build_info.md
           retention-days: 30
 
