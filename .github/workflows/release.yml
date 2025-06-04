@@ -178,14 +178,15 @@ jobs:
         run: |
           mkdir -p release_files
 
-          # 复制Android APK文件
-          cp artifacts/android-apks/*.apk release_files/ || true
-          cp artifacts/android-apks/*.aab release_files/ || true
+          # 列出下载的构建产物目录结构以便调试
+          echo "下载的构建产物目录结构:"
+          find artifacts -type f | sort
+
+          # 复制Android APK文件 - 使用find命令更可靠地查找和复制文件
+          find artifacts/android-apks -name "*.apk" -exec cp {} release_files/ \; || echo "未找到Android APK文件"
 
           # 复制Windows应用
-          cp artifacts/windows-app/*.zip release_files/ || true
-
-
+          cp artifacts/windows-app/*.zip release_files/ || echo "未找到Windows应用文件"
 
           # 列出所有文件
           echo "📦 发布文件列表:"
