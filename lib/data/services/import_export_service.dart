@@ -36,7 +36,7 @@ class ImportExportService {
         throw Exception('没有交易记录可导出');
       }
 
-      // CSV标题行
+      // CSV标题行 - 统一格式
       final List<List<String>> csvData = [
         [
           '日期',
@@ -44,24 +44,26 @@ class ImportExportService {
           '股票名称',
           '交易类型',
           '数量',
-          '价格',
-          '总金额',
-          '手续费',
+          '单价',
+          '盈亏',
           '备注',
         ],
       ];
 
       // 添加数据行
       for (final transaction in transactions) {
+        // 根据数量判断交易类型
+        final transactionType = transaction.amount >= Decimal.zero ? '买入' : '卖出';
+        final displayAmount = transaction.amount.abs(); // 显示绝对值
+
         csvData.add([
           DateFormat('yyyy-MM-dd').format(transaction.date),
           transaction.stockCode,
           transaction.stockName,
-          'buy', // 默认为买入，因为当前模型没有交易类型字段
-          transaction.amount.toString(),
+          transactionType,
+          displayAmount.toString(),
           transaction.unitPrice.toString(),
-          (transaction.amount * transaction.unitPrice).toString(),
-          '0', // 默认手续费为0，因为当前模型没有手续费字段
+          transaction.profitLoss.toString(),
           transaction.notes ?? '',
         ]);
       }
@@ -117,23 +119,44 @@ class ImportExportService {
       int importedCount = 0;
 
       for (final row in dataRows) {
-        if (row.length < 8) continue; // 跳过不完整的行
+        if (row.length < 6) continue; // 至少需要6个字段（备注可选）
 
         try {
+          // 解析交易类型和数量
+          final transactionType = row[3].toString().trim();
+          final rawAmount = Decimal.parse(row[4].toString());
+
+          // 根据交易类型调整数量的正负
+          final amount = (transactionType == '卖出' || transactionType == 'sell')
+              ? -rawAmount.abs()
+              : rawAmount.abs();
+
+          // 解析盈亏字段（如果存在）
+          final profitLoss = row.length > 6 && row[6].toString().trim().isNotEmpty
+              ? Decimal.parse(row[6].toString().replaceAll('+', ''))
+              : Decimal.zero;
+
           final transaction = Transaction(
             id: null, // 将在保存时生成
             userId: userId,
             stockCode: row[1].toString(),
             stockName: row[2].toString(),
-            amount: Decimal.parse(row[4].toString()),
+            amount: amount,
             unitPrice: Decimal.parse(row[5].toString()),
-            profitLoss: Decimal.zero, // 默认盈亏为0
+            profitLoss: profitLoss,
             date: DateFormat('yyyy-MM-dd').parse(row[0].toString()),
             createdAt: DateTime.now(),
-            notes: row.length > 8 ? row[8].toString() : null,
+            notes: row.length > 7 ? row[7].toString() : null,
           );
 
-          await _transactionRepository.addTransaction(transaction);
+          // 如果是卖出交易且盈亏为0，则自动计算盈亏
+          if (amount < Decimal.zero && profitLoss == Decimal.zero) {
+            final calculatedTransaction = await _calculateProfitLoss(transaction, userId);
+            await _transactionRepository.addTransaction(calculatedTransaction);
+          } else {
+            await _transactionRepository.addTransaction(transaction);
+          }
+
           importedCount++;
         } catch (e) {
           // 跳过无法解析的行
@@ -150,6 +173,8 @@ class ImportExportService {
   /// 从TXT文件导入交易记录
   /// TXT文件格式支持多种常见格式：
   /// 格式1（标准格式）: 日期 股票代码 股票名称 数量 单价 备注
+  ///   - 数量为正数表示买入，负数表示卖出
+  ///   - 卖出交易会自动计算盈亏
   /// 格式2（盈亏格式）: 股票名称：盈XXX元，日期
   /// 格式3（制表符分隔）: 日期\t股票代码\t股票名称\t数量\t单价\t备注
   /// 格式4（逗号分隔）: 日期,股票代码,股票名称,数量,单价,备注
@@ -237,7 +262,14 @@ class ImportExportService {
               errorMessage: '该交易记录已存在',
             ));
           } else {
-            await _transactionRepository.addTransaction(transaction);
+            // 如果是卖出交易且盈亏为0，则自动计算盈亏
+            if (transaction.amount < Decimal.zero && transaction.profitLoss == Decimal.zero) {
+              final calculatedTransaction = await _calculateProfitLoss(transaction, userId);
+              await _transactionRepository.addTransaction(calculatedTransaction);
+            } else {
+              await _transactionRepository.addTransaction(transaction);
+            }
+
             existingKeys.add(transactionKey); // 添加到已存在集合中，避免同一批次内重复
             successCount++;
           }
@@ -376,18 +408,91 @@ class ImportExportService {
       throw FormatException('数据字段不足，至少需要5个字段: $line');
     }
 
+    // 解析数量，支持负数表示卖出
+    final rawAmount = Decimal.parse(parts[3].trim());
+    final amount = rawAmount;
+
     return Transaction(
       id: null,
       userId: userId,
       date: _parseDate(parts[0].trim()),
       stockCode: parts[1].trim(),
       stockName: parts[2].trim(),
-      amount: Decimal.parse(parts[3].trim()),
+      amount: amount,
       unitPrice: Decimal.parse(parts[4].trim()),
       profitLoss: Decimal.zero,
       createdAt: DateTime.now(),
       notes: parts.length > 5 ? parts[5].trim() : null,
     );
+  }
+
+  /// 计算卖出交易的盈亏（公开方法）
+  Future<Transaction> calculateProfitLoss(Transaction sellTransaction, String userId) async {
+    return await _calculateProfitLoss(sellTransaction, userId);
+  }
+
+  /// 计算卖出交易的盈亏（内部方法）
+  Future<Transaction> _calculateProfitLoss(Transaction sellTransaction, String userId) async {
+    if (sellTransaction.amount >= Decimal.zero) {
+      // 不是卖出交易，直接返回
+      return sellTransaction;
+    }
+
+    try {
+      // 获取该股票的所有买入记录（按日期排序，FIFO原则）
+      final allTransactions = await _transactionRepository.getTransactionsByUserId(userId);
+      final stockTransactions = allTransactions
+          .where((t) => t.stockCode == sellTransaction.stockCode && t.date.isBefore(sellTransaction.date))
+          .toList();
+
+      stockTransactions.sort((a, b) => a.date.compareTo(b.date));
+
+      // 计算可用的买入股票（考虑之前的卖出）
+      final availableShares = <_ShareLot>[];
+
+      for (final transaction in stockTransactions) {
+        if (transaction.amount > Decimal.zero) {
+          // 买入记录
+          availableShares.add(_ShareLot(
+            quantity: transaction.amount,
+            price: transaction.unitPrice,
+            date: transaction.date,
+          ));
+        } else {
+          // 卖出记录，减少可用股票
+          var remainingSell = transaction.amount.abs();
+          for (final lot in availableShares) {
+            if (remainingSell <= Decimal.zero) break;
+
+            final sellFromThisLot = remainingSell > lot.quantity ? lot.quantity : remainingSell;
+            lot.quantity -= sellFromThisLot;
+            remainingSell -= sellFromThisLot;
+          }
+          // 移除数量为0的批次
+          availableShares.removeWhere((lot) => lot.quantity <= Decimal.zero);
+        }
+      }
+
+      // 计算本次卖出的盈亏
+      var remainingSell = sellTransaction.amount.abs();
+      var totalCost = Decimal.zero;
+      var totalRevenue = sellTransaction.amount.abs() * sellTransaction.unitPrice;
+
+      for (final lot in availableShares) {
+        if (remainingSell <= Decimal.zero) break;
+
+        final sellFromThisLot = remainingSell > lot.quantity ? lot.quantity : remainingSell;
+        totalCost += sellFromThisLot * lot.price;
+        remainingSell -= sellFromThisLot;
+      }
+
+      final profitLoss = totalRevenue - totalCost;
+
+      return sellTransaction.copyWith(profitLoss: profitLoss);
+    } catch (e) {
+      // 计算失败时返回原交易记录
+      return sellTransaction;
+    }
   }
 
   /// 生成股票代码
@@ -619,4 +724,17 @@ class ImportExportService {
       // 忽略清理错误
     }
   }
+}
+
+/// 股票批次辅助类，用于FIFO盈亏计算
+class _ShareLot {
+  Decimal quantity;
+  final Decimal price;
+  final DateTime date;
+
+  _ShareLot({
+    required this.quantity,
+    required this.price,
+    required this.date,
+  });
 }

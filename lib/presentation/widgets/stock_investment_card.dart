@@ -53,12 +53,12 @@ class StockInvestmentCard extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
+                      color: profitColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.trending_up,
-                      color: colorScheme.onPrimaryContainer,
+                      isProfit ? Icons.trending_up : Icons.trending_down,
+                      color: profitColor,
                       size: 20,
                     ),
                   ),
@@ -88,7 +88,7 @@ class StockInvestmentCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${isProfit ? '+' : ''}¥${transaction.profitLoss.toStringAsFixed(2)}',
+                        '￥${isProfit ? '+' : '-'}${transaction.profitLoss.abs().toStringAsFixed(2)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: profitColor,
                           fontWeight: FontWeight.bold,
@@ -116,7 +116,8 @@ class StockInvestmentCard extends ConsumerWidget {
                   const SizedBox(width: 8),
                   _InfoChip(
                     label: '收益率',
-                    value: '${_calculateReturnRate().toStringAsFixed(2)}%',
+                    value: '${isProfit ? '+' : ''}${_calculateReturnRate().toStringAsFixed(2)}%',
+                    valueColor: profitColor, // 使用盈亏颜色
                   ),
                 ],
               ),
@@ -194,12 +195,14 @@ class StockInvestmentCard extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
+                      color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      Icons.trending_up,
-                      color: colorScheme.onPrimaryContainer,
+                      transaction.profitLoss.toDouble() > 0
+                          ? Icons.trending_up
+                          : Icons.trending_down,
+                      color: Colors.grey,
                       size: 20,
                     ),
                   ),
@@ -229,7 +232,7 @@ class StockInvestmentCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '¥${transaction.profitLoss.toStringAsFixed(2)}',
+                        '￥${transaction.profitLoss.toDouble() > 0 ? '+' : '-'}${transaction.profitLoss.abs().toStringAsFixed(2)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.grey,
                           fontWeight: FontWeight.bold,
@@ -257,7 +260,8 @@ class StockInvestmentCard extends ConsumerWidget {
                   const SizedBox(width: 8),
                   _InfoChip(
                     label: '收益率',
-                    value: '${_calculateReturnRate().toStringAsFixed(2)}%',
+                    value: '${transaction.profitLoss.toDouble() > 0 ? '+' : ''}${_calculateReturnRate().toStringAsFixed(2)}%',
+                    valueColor: Colors.grey, // 加载状态使用灰色
                   ),
                 ],
               ),
@@ -333,10 +337,12 @@ class StockInvestmentCard extends ConsumerWidget {
 class _InfoChip extends StatelessWidget {
   final String label;
   final String value;
+  final Color? valueColor;
 
   const _InfoChip({
     required this.label,
     required this.value,
+    this.valueColor,
   });
 
   @override
@@ -361,6 +367,7 @@ class _InfoChip extends StatelessWidget {
             value,
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.bold,
+              color: valueColor,
             ),
           ),
         ],

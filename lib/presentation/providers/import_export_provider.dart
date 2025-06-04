@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/services/import_export_service.dart';
 import '../../data/models/import_result.dart';
 import '../../core/auth/auth_service.dart';
+import '../../core/sync/sync_manager.dart';
 import 'transaction_provider.dart';
 import 'shared_investment_provider.dart';
 import 'investment_goal_provider.dart';
@@ -63,6 +64,9 @@ class ImportExportNotifier extends _$ImportExportNotifier {
       // 刷新交易记录
       ref.invalidate(transactionNotifierProvider);
 
+      // 自动触发同步
+      _triggerAutoSync();
+
       state = const AsyncValue.data(null);
       return result;
     } catch (e, stack) {
@@ -86,6 +90,9 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
       // 刷新交易记录
       ref.invalidate(transactionNotifierProvider);
+
+      // 自动触发同步
+      _triggerAutoSync();
 
       state = const AsyncValue.data(null);
       return result;
@@ -128,11 +135,36 @@ class ImportExportNotifier extends _$ImportExportNotifier {
       ref.invalidate(sharedInvestmentNotifierProvider);
       ref.invalidate(investmentGoalNotifierProvider);
 
+      // 自动触发同步
+      _triggerAutoSync();
+
       state = const AsyncValue.data(null);
       return result;
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;
+    }
+  }
+
+  /// 触发自动同步
+  void _triggerAutoSync() {
+    try {
+      final syncManager = ref.read(syncManagerProvider);
+      // 异步执行同步，不阻塞当前操作
+      Future.microtask(() async {
+        try {
+          await syncManager.manualSync();
+          // 同步完成后刷新所有相关数据
+          ref.invalidate(transactionNotifierProvider);
+          ref.invalidate(sharedInvestmentNotifierProvider);
+          ref.invalidate(investmentGoalNotifierProvider);
+        } catch (e) {
+          // 同步失败时不影响用户操作，只是静默处理
+          // 可以在这里记录日志或显示非阻塞性提示
+        }
+      });
+    } catch (e) {
+      // 如果获取syncManager失败，也不影响用户操作
     }
   }
 

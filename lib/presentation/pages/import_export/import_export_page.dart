@@ -145,7 +145,7 @@ class _ExportSection extends ConsumerWidget {
 
             _ActionTile(
               title: '导出交易记录',
-              subtitle: '将交易记录导出为CSV文件，便于在Excel中查看和分析',
+              subtitle: '导出格式：日期,股票代码,股票名称,交易类型,数量,单价,盈亏,备注\n包含完整的交易记录和盈亏计算',
               icon: LucideIcons.fileSpreadsheet,
               color: Colors.green,
               onTap: () => _exportTransactions(context, ref),
@@ -280,7 +280,7 @@ class _ImportSection extends ConsumerWidget {
 
             _ActionTile(
               title: '导入CSV交易记录',
-              subtitle: '从CSV文件导入交易记录，支持标准格式',
+              subtitle: '格式：日期,股票代码,股票名称,交易类型,数量,单价,盈亏,备注\n系统自动计算卖出盈亏',
               icon: LucideIcons.fileSpreadsheet,
               color: Colors.green,
               onTap: () => _importTransactionsFromCSV(context, ref),
@@ -289,7 +289,7 @@ class _ImportSection extends ConsumerWidget {
 
             _ActionTile(
               title: '导入TXT交易记录',
-              subtitle: '从TXT文件导入交易记录，支持多种分隔符格式',
+              subtitle: '格式：日期 股票代码 股票名称 数量 单价 备注\n数量负数=卖出，系统自动计算盈亏',
               icon: LucideIcons.fileText,
               color: Colors.blue,
               onTap: () => _importTransactionsFromTXT(context, ref),

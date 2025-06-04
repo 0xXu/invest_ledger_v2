@@ -14,14 +14,22 @@ class SupabaseConfig {
       throw Exception('Supabase 配置不完整，请检查 .env 文件');
     }
 
+    // 调试信息
+    print('🔧 Supabase 配置:');
+    print('  URL: $supabaseUrl');
+    print('  Key: ${supabaseAnonKey.substring(0, 20)}...');
+    print('  Debug: ${dotenv.env['DEBUG_MODE'] == 'true'}');
+
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
-      debug: dotenv.env['DEBUG_MODE'] == 'true', // 从环境变量读取调试模式
+      debug: true, // 强制启用调试模式
       authOptions: const FlutterAuthClientOptions(
         authFlowType: AuthFlowType.pkce, // 使用 PKCE 流程，更安全
       ),
     );
+
+    print('✅ Supabase 初始化完成');
   }
   
   // 检查是否已初始化

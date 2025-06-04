@@ -4,6 +4,7 @@ import '../../data/models/transaction.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../../data/datasources/local/transaction_dao.dart';
 import '../../core/auth/auth_service.dart';
+import '../../core/sync/sync_manager.dart';
 import 'loading_provider.dart';
 
 part 'transaction_provider.g.dart';
@@ -37,6 +38,9 @@ class TransactionNotifier extends _$TransactionNotifier {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.addTransaction(transaction);
       ref.invalidateSelf();
+
+      // 自动触发同步
+      _triggerAutoSync();
     }, '正在添加交易...');
   }
 
@@ -46,6 +50,9 @@ class TransactionNotifier extends _$TransactionNotifier {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.updateTransaction(transaction);
       ref.invalidateSelf();
+
+      // 自动触发同步
+      _triggerAutoSync();
     }, '正在更新交易...');
   }
 
@@ -55,7 +62,30 @@ class TransactionNotifier extends _$TransactionNotifier {
       final repository = ref.read(transactionRepositoryProvider);
       await repository.deleteTransaction(transactionId);
       ref.invalidateSelf();
+
+      // 自动触发同步
+      _triggerAutoSync();
     }, '正在删除交易...');
+  }
+
+  /// 触发自动同步
+  void _triggerAutoSync() {
+    try {
+      final syncManager = ref.read(syncManagerProvider);
+      // 异步执行同步，不阻塞当前操作
+      Future.microtask(() async {
+        try {
+          await syncManager.manualSync();
+          // 同步完成后刷新数据
+          ref.invalidateSelf();
+        } catch (e) {
+          // 同步失败时不影响用户操作，只是静默处理
+          // 可以在这里记录日志或显示非阻塞性提示
+        }
+      });
+    } catch (e) {
+      // 如果获取syncManager失败，也不影响用户操作
+    }
   }
 }
 

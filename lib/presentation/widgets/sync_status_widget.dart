@@ -5,17 +5,85 @@ import '../../core/sync/sync_manager.dart';
 import '../../core/sync/sync_status.dart';
 import '../../core/config/supabase_config.dart';
 
-class SyncStatusWidget extends ConsumerWidget {
+class SyncStatusWidget extends ConsumerStatefulWidget {
   const SyncStatusWidget({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SyncStatusWidget> createState() => _SyncStatusWidgetState();
+}
+
+class _SyncStatusWidgetState extends ConsumerState<SyncStatusWidget>
+    with TickerProviderStateMixin {
+  late AnimationController _hoverController;
+  late AnimationController _pressController;
+  late AnimationController _refreshController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _pressAnimation;
+  late Animation<double> _rotationAnimation;
+
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _pressController = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+
+    _refreshController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeInOut,
+    ));
+
+    _pressAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _pressController,
+      curve: Curves.easeInOut,
+    ));
+
+    _rotationAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(
+      parent: _refreshController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    _pressController.dispose();
+    _refreshController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     if (!SupabaseConfig.isLoggedIn) {
       return const SizedBox.shrink(); // 未登录时不显示
     }
 
     final syncStatusAsync = ref.watch(syncStatusProvider);
-    
+
     return syncStatusAsync.when(
       data: (status) => _buildStatusWidget(context, ref, status),
       loading: () => const SizedBox.shrink(),
@@ -24,54 +92,131 @@ class SyncStatusWidget extends ConsumerWidget {
   }
 
   Widget _buildStatusWidget(BuildContext context, WidgetRef ref, SyncStatus status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: _getStatusColor(status).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _getStatusColor(status).withOpacity(0.3),
-          width: 1,
+    final canSync = !status.isSyncing && status.isOnline;
+
+    return MouseRegion(
+      onEnter: canSync ? (_) => _handleHoverEnter() : null,
+      onExit: canSync ? (_) => _handleHoverExit() : null,
+      child: GestureDetector(
+        onTapDown: canSync ? (_) => _handleTapDown() : null,
+        onTapUp: canSync ? (_) => _handleTapUp() : null,
+        onTapCancel: canSync ? _handleTapCancel : null,
+        onTap: canSync ? () => _handleManualSync(context, ref) : null,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_scaleAnimation, _pressAnimation]),
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value * _pressAnimation.value,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(status).withValues(alpha: _isHovered && canSync ? 0.15 : 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _getStatusColor(status).withValues(alpha: _isHovered && canSync ? 0.5 : 0.3),
+                    width: _isHovered && canSync ? 1.5 : 1,
+                  ),
+                  boxShadow: _isHovered && canSync
+                      ? [
+                          BoxShadow(
+                            color: _getStatusColor(status).withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildStatusIcon(status),
+                    const SizedBox(width: 8),
+                    Text(
+                      _getStatusText(status),
+                      style: TextStyle(
+                        color: _getStatusColor(status),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (status.isSyncing) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(_getStatusColor(status)),
+                        ),
+                      ),
+                    ],
+                    if (canSync) ...[
+                      const SizedBox(width: 8),
+                      AnimatedBuilder(
+                        animation: _rotationAnimation,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _rotationAnimation.value * 2 * 3.14159,
+                            child: Icon(
+                              Icons.refresh,
+                              size: 16,
+                              color: _getStatusColor(status),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildStatusIcon(status),
-          const SizedBox(width: 8),
-          Text(
-            _getStatusText(status),
-            style: TextStyle(
-              color: _getStatusColor(status),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (status.isSyncing) ...[
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation(_getStatusColor(status)),
-              ),
-            ),
-          ],
-          if (!status.isSyncing && status.isOnline) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => _handleManualSync(context, ref),
-              child: Icon(
-                Icons.refresh,
-                size: 16,
-                color: _getStatusColor(status),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
+  }
+
+  void _handleHoverEnter() {
+    if (!_isHovered) {
+      setState(() {
+        _isHovered = true;
+      });
+      _hoverController.forward();
+    }
+  }
+
+  void _handleHoverExit() {
+    if (_isHovered) {
+      setState(() {
+        _isHovered = false;
+      });
+      _hoverController.reverse();
+    }
+  }
+
+  void _handleTapDown() {
+    setState(() {
+      _isPressed = true;
+    });
+    _pressController.forward();
+  }
+
+  void _handleTapUp() {
+    if (_isPressed) {
+      setState(() {
+        _isPressed = false;
+      });
+      _pressController.reverse();
+    }
+  }
+
+  void _handleTapCancel() {
+    if (_isPressed) {
+      setState(() {
+        _isPressed = false;
+      });
+      _pressController.reverse();
+    }
   }
 
   Widget _buildStatusIcon(SyncStatus status) {
@@ -159,21 +304,35 @@ class SyncStatusWidget extends ConsumerWidget {
   }
 
   Future<void> _handleManualSync(BuildContext context, WidgetRef ref) async {
+    // 开始旋转动画
+    _refreshController.repeat();
+
     try {
       final syncManager = ref.read(syncManagerProvider);
       await syncManager.manualSync();
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('同步完成')),
+          const SnackBar(
+            content: Text('同步完成'),
+            duration: Duration(seconds: 2),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('同步失败: $e')),
+          SnackBar(
+            content: Text('同步失败: $e'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+    } finally {
+      // 停止旋转动画
+      _refreshController.stop();
+      _refreshController.reset();
     }
   }
 }

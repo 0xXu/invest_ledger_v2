@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../data/models/transaction.dart';
-
+import '../../../core/sync/sync_manager.dart';
+import '../../../core/sync/sync_status.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/stock_investment_card.dart';
 import '../../widgets/refresh_button.dart';
@@ -27,6 +28,21 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
   Widget build(BuildContext context) {
     super.build(context); // 必须调用，用于保活机制
     final transactionsAsync = ref.watch(transactionNotifierProvider);
+
+    // 监听同步状态，当同步完成时自动刷新数据
+    ref.listen<AsyncValue<SyncStatus>>(syncStatusProvider, (previous, next) {
+      next.whenData((status) {
+        if (previous?.value?.state != SyncState.success &&
+            status.state == SyncState.success) {
+          // 同步刚刚完成，刷新交易数据
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              ref.invalidate(transactionNotifierProvider);
+            }
+          });
+        }
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(

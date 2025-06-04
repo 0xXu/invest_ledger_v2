@@ -169,10 +169,11 @@ class _RefreshButtonState extends ConsumerState<RefreshButton>
 
     switch (widget.style) {
       case RefreshButtonStyle.icon:
-        return IconButton(
+        return _EnhancedIconButton(
           onPressed: widget.enabled ? _handleRefresh : null,
           icon: iconWidget,
           tooltip: widget.tooltip,
+          isRefreshing: _isRefreshing,
         );
 
       case RefreshButtonStyle.text:
@@ -189,6 +190,164 @@ class _RefreshButtonState extends ConsumerState<RefreshButton>
           label: Text(widget.label ?? '刷新'),
         );
     }
+  }
+}
+
+/// 增强的图标按钮，具有悬停和点击效果
+class _EnhancedIconButton extends StatefulWidget {
+  final VoidCallback? onPressed;
+  final Widget icon;
+  final String? tooltip;
+  final bool isRefreshing;
+
+  const _EnhancedIconButton({
+    required this.onPressed,
+    required this.icon,
+    this.tooltip,
+    required this.isRefreshing,
+  });
+
+  @override
+  State<_EnhancedIconButton> createState() => _EnhancedIconButtonState();
+}
+
+class _EnhancedIconButtonState extends State<_EnhancedIconButton>
+    with TickerProviderStateMixin {
+  late AnimationController _hoverController;
+  late AnimationController _pressController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _pressAnimation;
+
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _pressController = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeInOut,
+    ));
+
+    _pressAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _pressController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _hoverController.dispose();
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  void _handleHoverEnter() {
+    if (!_isHovered && widget.onPressed != null) {
+      setState(() {
+        _isHovered = true;
+      });
+      _hoverController.forward();
+    }
+  }
+
+  void _handleHoverExit() {
+    if (_isHovered) {
+      setState(() {
+        _isHovered = false;
+      });
+      _hoverController.reverse();
+    }
+  }
+
+  void _handleTapDown() {
+    if (widget.onPressed != null) {
+      setState(() {
+        _isPressed = true;
+      });
+      _pressController.forward();
+    }
+  }
+
+  void _handleTapUp() {
+    if (_isPressed) {
+      setState(() {
+        _isPressed = false;
+      });
+      _pressController.reverse();
+    }
+  }
+
+  void _handleTapCancel() {
+    if (_isPressed) {
+      setState(() {
+        _isPressed = false;
+      });
+      _pressController.reverse();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => _handleHoverEnter(),
+      onExit: (_) => _handleHoverExit(),
+      child: GestureDetector(
+        onTapDown: (_) => _handleTapDown(),
+        onTapUp: (_) => _handleTapUp(),
+        onTapCancel: _handleTapCancel,
+        onTap: widget.onPressed,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_scaleAnimation, _pressAnimation]),
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value * _pressAnimation.value,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  color: _isHovered && widget.onPressed != null
+                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  border: widget.isRefreshing
+                      ? Border.all(
+                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                          width: 2,
+                        )
+                      : null,
+                ),
+                child: Center(
+                  child: Tooltip(
+                    message: widget.tooltip ?? '',
+                    child: widget.icon,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 }
 

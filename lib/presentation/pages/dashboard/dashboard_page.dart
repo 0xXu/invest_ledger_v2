@@ -6,6 +6,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/models/investment_goal.dart';
 import '../../../core/auth/auth_service.dart';
+import '../../../core/sync/sync_manager.dart';
+import '../../../core/sync/sync_status.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/investment_goal_provider.dart';
 import '../../providers/color_theme_provider.dart';
@@ -35,6 +38,24 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
     final transactionsAsync = ref.watch(transactionNotifierProvider);
     final statsAsync = ref.watch(transactionStatsProvider);
 
+    // 监听同步状态，当同步完成时自动刷新数据
+    ref.listen<AsyncValue<SyncStatus>>(syncStatusProvider, (previous, next) {
+      next.whenData((status) {
+        if (previous?.value?.state != SyncState.success &&
+            status.state == SyncState.success) {
+          // 同步刚刚完成，刷新所有数据
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              ref.invalidate(transactionNotifierProvider);
+              ref.invalidate(transactionStatsProvider);
+              ref.invalidate(monthlyGoalProgressProvider);
+              ref.invalidate(yearlyGoalProgressProvider);
+            }
+          });
+        }
+      });
+    });
+
 
 
     // 如果用户未登录，重新导航到登录页面
@@ -55,7 +76,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('投资概览 - ${authState.user!.email}'),
+        title: Text('投资概览 - ${_getUserDisplayName(authState.user!)}'),
         actions: [
           // 同步状态组件
           const SyncStatusWidget(),
@@ -118,6 +139,25 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
         label: const Text('添加交易'),
       ),
     );
+  }
+
+  /// 获取用户显示名称，优先显示用户名，没有用户名则显示邮箱
+  String _getUserDisplayName(User user) {
+    // 尝试从用户元数据中获取显示名称
+    final displayName = user.userMetadata?['display_name'] as String?;
+    final name = user.userMetadata?['name'] as String?;
+
+    // 优先使用display_name，然后是name，最后是email
+    if (displayName != null && displayName.isNotEmpty && displayName != user.email) {
+      return displayName;
+    }
+
+    if (name != null && name.isNotEmpty && name != user.email) {
+      return name;
+    }
+
+    // 如果没有有效的用户名，返回邮箱
+    return user.email ?? 'Unknown User';
   }
 }
 
