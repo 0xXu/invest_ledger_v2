@@ -3,27 +3,27 @@ name: 🚀 Release Build and Deploy
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号 (例如: 1.0.0)'
+        description: "版本号 (例如: 1.0.0)"
         required: true
         type: string
       release_notes:
-        description: '发布说明'
+        description: "发布说明"
         required: false
         type: string
-        default: ''
+        default: ""
       prerelease:
-        description: '是否为预发布版本'
+        description: "是否为预发布版本"
         required: false
         type: boolean
         default: false
 
 env:
-  FLUTTER_VERSION: '3.32.0'
-  JAVA_VERSION: '17'
+  FLUTTER_VERSION: "3.32.0"
+  JAVA_VERSION: "17"
 
 jobs:
   # 构建Android APK
@@ -32,77 +32,70 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 检出代码
-      uses: actions/checkout@v4
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
 
-    - name: ☕ 设置 Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: ${{ env.JAVA_VERSION }}
+      - name: ☕ 设置 Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
 
-    - name: 🐦 设置 Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        cache: true
+      - name: 🐦 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
 
-    - name: 📦 获取依赖
-      run: |
-        flutter pub get
-        flutter pub run build_runner build --delete-conflicting-outputs
+      - name: 📦 获取依赖
+        run: |
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
 
-    - name: Clean Flutter build artifacts 
-      run: flutter clean
+      - name: Clean Flutter build artifacts
+        run: flutter clean
 
-    - name: 🔧 创建环境配置文件
-      run: |
-        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
-        echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+      - name: 🔧 创建环境配置文件
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-    - name: 🔑 设置 Android 签名
-      run: |
-        echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
-        echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > android/key.properties
-        echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
-        echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
-        echo "storeFile=../upload-keystore.jks" >> android/key.properties
+      - name: 🔑 设置 Android 签名
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+          echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=../upload-keystore.jks" >> android/key.properties
 
-    - name: 🏗️ 构建 APK
-      run: |
-        flutter build apk --release --split-per-abi
+      - name: 🏗️ 构建 APK
+        run: |
+          flutter build apk
 
-    - name: Upload APK artifacts 
-      uses: actions/upload-artifact@v4
-      with:
-        name: release-apk
-        path: build/app/outputs/flutter-apk/*.apk
+      - name: 📋 生成构建信息
+        run: |
+          echo "## 📱 Android 构建信息" > build_info.md
+          echo "" >> build_info.md
+          echo "- **构建时间**: $(date)" >> build_info.md
+          echo "- **Flutter版本**: ${{ env.FLUTTER_VERSION }}" >> build_info.md
+          echo "- **Java版本**: ${{ env.JAVA_VERSION }}" >> build_info.md
+          echo "- **Git提交**: ${{ github.sha }}" >> build_info.md
+          echo "" >> build_info.md
+          echo "### 📦 构建产物" >> build_info.md
+          echo "" >> build_info.md
+          ls -la build/app/outputs/flutter-apk/ >> build_info.md
+          echo "" >> build_info.md
+          ls -la build/app/outputs/bundle/release/ >> build_info.md
 
-
-    - name: 📋 生成构建信息
-      run: |
-        echo "## 📱 Android 构建信息" > build_info.md
-        echo "" >> build_info.md
-        echo "- **构建时间**: $(date)" >> build_info.md
-        echo "- **Flutter版本**: ${{ env.FLUTTER_VERSION }}" >> build_info.md
-        echo "- **Java版本**: ${{ env.JAVA_VERSION }}" >> build_info.md
-        echo "- **Git提交**: ${{ github.sha }}" >> build_info.md
-        echo "" >> build_info.md
-        echo "### 📦 构建产物" >> build_info.md
-        echo "" >> build_info.md
-        ls -la build/app/outputs/flutter-apk/ >> build_info.md
-        echo "" >> build_info.md
-        ls -la build/app/outputs/bundle/release/ >> build_info.md
-
-    - name: 📤 上传 APK 构建产物
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apks
-        path: |
-          build/app/outputs/flutter-apk/*.apk
-          build/app/outputs/bundle/release/*.aab
-          build_info.md
-        retention-days: 30
+      - name: 📤 上传 APK 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+            build_info.md
+          retention-days: 30
 
   # 构建Windows应用
   build-windows:
@@ -110,40 +103,39 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: 📥 检出代码
-      uses: actions/checkout@v4
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
 
-    - name: 🐦 设置 Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
-        cache: true
+      - name: 🐦 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
 
-    - name: 📦 获取依赖
-      run: |
-        flutter pub get
-        flutter pub run build_runner build --delete-conflicting-outputs
+      - name: 📦 获取依赖
+        run: |
+          flutter pub get
+          flutter pub run build_runner build --delete-conflicting-outputs
 
-    - name: 🔧 创建环境配置文件
-      run: |
-        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
-        echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+      - name: 🔧 创建环境配置文件
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-    - name: 🏗️ 构建 Windows 应用
-      run: |
-        flutter build windows --release
+      - name: 🏗️ 构建 Windows 应用
+        run: |
+          flutter build windows --release
 
-    - name: 📦 打包 Windows 应用
-      run: |
-        Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "invest_ledger_windows.zip"
+      - name: 📦 打包 Windows 应用
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "invest_ledger_windows.zip"
 
-    - name: 📤 上传 Windows 构建产物
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-app
-        path: invest_ledger_windows.zip
-        retention-days: 30
-
+      - name: 📤 上传 Windows 构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-app
+          path: invest_ledger_windows.zip
+          retention-days: 30
 
   # 创建GitHub Release
   create-release:
@@ -153,108 +145,108 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
-    - name: 📥 检出代码
-      uses: actions/checkout@v4
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
 
-    - name: 📥 下载所有构建产物
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
+      - name: 📥 下载所有构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-    - name: 📋 准备发布文件
-      run: |
-        mkdir -p release_files
+      - name: 📋 准备发布文件
+        run: |
+          mkdir -p release_files
 
-        # 复制Android APK文件
-        cp artifacts/android-apks/*.apk release_files/ || true
-        cp artifacts/android-apks/*.aab release_files/ || true
+          # 复制Android APK文件
+          cp artifacts/android-apks/*.apk release_files/ || true
+          cp artifacts/android-apks/*.aab release_files/ || true
 
-        # 复制Windows应用
-        cp artifacts/windows-app/*.zip release_files/ || true
-
-        
-
-        # 列出所有文件
-        echo "📦 发布文件列表:"
-        ls -la release_files/
-
-    - name: 📝 生成发布说明
-      id: release_notes
-      run: |
-        # 获取版本号
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          VERSION="${{ github.event.inputs.version }}"
-          RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
-          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
-        else
-          VERSION=${GITHUB_REF#refs/tags/v}
-          RELEASE_NOTES=""
-          IS_PRERELEASE="false"
-        fi
-
-        # 生成发布说明
-        cat > release_notes.md << EOF
-        # 🎉 InvestLedger v${VERSION}
-
-        ${RELEASE_NOTES}
-
-        ## 📱 支持平台
-
-        - **Android**: APK文件支持 ARM64、ARMv7、x86_64 架构
-        - **Windows**: 支持 x64 架构
-
-        ## 📦 下载说明
-
-        ### Android 用户
-        - 下载对应架构的APK文件直接安装
-        - 推荐下载 \`app-arm64-v8a-release.apk\` (适用于大多数现代Android设备)
-
-        ### Windows 用户
-        - 下载 \`invest_ledger_windows.zip\`
-        - 解压后运行 \`invest_ledger.exe\`
+          # 复制Windows应用
+          cp artifacts/windows-app/*.zip release_files/ || true
 
 
-        ## 🔧 系统要求
 
-        - **Android**: Android 5.0 (API 21) 或更高版本
-        - **Windows**: Windows 10 或更高版本
+          # 列出所有文件
+          echo "📦 发布文件列表:"
+          ls -la release_files/
 
-        ## 📝 更新日志
+      - name: 📝 生成发布说明
+        id: release_notes
+        run: |
+          # 获取版本号
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+            RELEASE_NOTES=""
+            IS_PRERELEASE="false"
+          fi
 
-        查看完整更新日志请访问: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          # 生成发布说明
+          cat > release_notes.md << EOF
+          # 🎉 InvestLedger v${VERSION}
 
-        ---
+          ${RELEASE_NOTES}
 
-        **构建信息**
-        - 构建时间: $(date)
-        - Git提交: ${{ github.sha }}
-        - Flutter版本: ${{ env.FLUTTER_VERSION }}
-        EOF
+          ## 📱 支持平台
 
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
+          - **Android**: APK文件支持 ARM64、ARMv7、x86_64 架构
+          - **Windows**: 支持 x64 架构
 
-    - name: 🚀 创建 GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
-        name: ${{ format('InvestLedger v{0}', steps.release_notes.outputs.version) }}
-        body_path: release_notes.md
-        files: release_files/*
-        draft: false
-        prerelease: ${{ steps.release_notes.outputs.is_prerelease == 'true' }}
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ## 📦 下载说明
 
-    - name: 📊 发布统计
-      run: |
-        echo "🎉 Release创建成功!"
-        echo "📊 发布统计:"
-        echo "- 版本: ${{ steps.release_notes.outputs.version }}"
-        echo "- 预发布: ${{ steps.release_notes.outputs.is_prerelease }}"
-        echo "- 文件数量: $(ls -1 release_files/ | wc -l)"
-        echo "- 总大小: $(du -sh release_files/ | cut -f1)"
+          ### Android 用户
+          - 下载对应架构的APK文件直接安装
+          - 推荐下载 \`app-arm64-v8a-release.apk\` (适用于大多数现代Android设备)
+
+          ### Windows 用户
+          - 下载 \`invest_ledger_windows.zip\`
+          - 解压后运行 \`invest_ledger.exe\`
+
+
+          ## 🔧 系统要求
+
+          - **Android**: Android 5.0 (API 21) 或更高版本
+          - **Windows**: Windows 10 或更高版本
+
+          ## 📝 更新日志
+
+          查看完整更新日志请访问: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+
+          ---
+
+          **构建信息**
+          - 构建时间: $(date)
+          - Git提交: ${{ github.sha }}
+          - Flutter版本: ${{ env.FLUTTER_VERSION }}
+          EOF
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
+
+      - name: 🚀 创建 GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+          name: ${{ format('InvestLedger v{0}', steps.release_notes.outputs.version) }}
+          body_path: release_notes.md
+          files: release_files/*
+          draft: false
+          prerelease: ${{ steps.release_notes.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📊 发布统计
+        run: |
+          echo "🎉 Release创建成功!"
+          echo "📊 发布统计:"
+          echo "- 版本: ${{ steps.release_notes.outputs.version }}"
+          echo "- 预发布: ${{ steps.release_notes.outputs.is_prerelease }}"
+          echo "- 文件数量: $(ls -1 release_files/ | wc -l)"
+          echo "- 总大小: $(du -sh release_files/ | cut -f1)"
 
   # 通知任务 (可选)
   notify:
@@ -264,14 +256,14 @@ jobs:
     if: always() && (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
 
     steps:
-    - name: 📢 发布成功通知
-      if: needs.create-release.result == 'success'
-      run: |
-        echo "✅ 发布成功完成!"
-        echo "🔗 Release链接: https://github.com/${{ github.repository }}/releases"
+      - name: 📢 发布成功通知
+        if: needs.create-release.result == 'success'
+        run: |
+          echo "✅ 发布成功完成!"
+          echo "🔗 Release链接: https://github.com/${{ github.repository }}/releases"
 
-    - name: ❌ 发布失败通知
-      if: needs.create-release.result == 'failure'
-      run: |
-        echo "❌ 发布过程中出现错误!"
-        echo "请检查构建日志并重试。"
+      - name: ❌ 发布失败通知
+        if: needs.create-release.result == 'failure'
+        run: |
+          echo "❌ 发布过程中出现错误!"
+          echo "请检查构建日志并重试。"
