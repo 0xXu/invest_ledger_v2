@@ -73,6 +73,10 @@ jobs:
       - name: 🏗️ 构建 APK
         run: |
           cd android
+          # 检查gradlew文件是否存在
+          ls -la
+          # 确保gradlew有执行权限
+          chmod +x ./gradlew
           ./gradlew app:assembleRelease
 
           mkdir -p ../build/app/outputs/flutter-apk/
