@@ -77,12 +77,9 @@ jobs:
 
       - name: 🏗️ 构建 APK
         run: |
-          cd android
-          # 检查gradlew文件是否存在
-          ls -la
-          # 确保gradlew有执行权限
-          chmod +x ./gradlew
-          ./gradlew app:assembleRelease
+          echo "FLUTTER_ROOT=$FLUTTER_HOME" >> $GITHUB_ENV
+          cd $GITHUB_WORKSPACE
+          ./android/gradlew -p android assembleRelease
 
           mkdir -p ../build/app/outputs/flutter-apk/
           cp app/build/outputs/apk/release/*.apk ../build/app/outputs/flutter-apk/
