@@ -67,10 +67,21 @@ jobs:
           echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/key.properties
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
           echo "storeFile=../upload-keystore.jks" >> android/key.properties
+          echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
+          echo "org.gradle.vfs.watch=false" >> android/gradle.properties
 
       - name: 🏗️ 构建 APK
         run: |
-          flutter build apk
+          cd android
+          ./gradlew app:assembleRelease
+
+          mkdir -p ../build/app/outputs/flutter-apk/
+          cp app/build/outputs/apk/release/*.apk ../build/app/outputs/flutter-apk/
+
+          echo "Generated APKs:"
+          ls -l app/build/outputs/apk/release/
+          echo "Copied to Flutter build dir:"
+          ls -l ../build/app/outputs/flutter-apk/
 
       - name: 📋 生成构建信息
         run: |
