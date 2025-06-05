@@ -289,22 +289,59 @@ class _DashboardContent extends ConsumerWidget {
       context: context,
       builder: (context) => _GoalSettingDialog(
         isMonthly: isMonthly,
-        onSave: (targetAmount, description) async {
+        onSave: (targetAmount, description, autoCalculate) async {
           final now = DateTime.now();
-          await ref.read(investmentGoalNotifierProvider.notifier).setGoal(
-            type: GoalType.profit,
-            period: isMonthly ? GoalPeriod.monthly : GoalPeriod.yearly,
-            year: now.year,
-            month: isMonthly ? now.month : null,
-            targetAmount: targetAmount,
-            description: description,
-          );
 
-          // 刷新相关数据
-          if (isMonthly) {
+          try {
+            await ref.read(investmentGoalNotifierProvider.notifier).setGoal(
+              type: GoalType.profit,
+              period: isMonthly ? GoalPeriod.monthly : GoalPeriod.yearly,
+              year: now.year,
+              month: isMonthly ? now.month : null,
+              targetAmount: targetAmount,
+              description: description,
+              autoCalculateCounterpart: autoCalculate,
+            );
+
+            // 强制刷新所有相关数据
+            ref.invalidate(currentMonthlyGoalProvider);
+            ref.invalidate(currentYearlyGoalProvider);
             ref.invalidate(monthlyGoalProgressProvider);
-          } else {
             ref.invalidate(yearlyGoalProgressProvider);
+            ref.invalidate(investmentGoalNotifierProvider);
+
+            // 显示成功提示
+            if (context.mounted) {
+              String message;
+              if (autoCalculate) {
+                message = isMonthly
+                  ? '月度目标设置成功！已自动计算年度目标'
+                  : '年度目标设置成功！已自动计算月度目标';
+              } else {
+                message = isMonthly
+                  ? '月度目标设置成功！'
+                  : '年度目标设置成功！';
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          } catch (e) {
+            // 显示错误提示
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('目标设置失败: $e'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
           }
         },
       ),
@@ -541,7 +578,7 @@ class _SummaryCard extends StatelessWidget {
 
 class _GoalSettingDialog extends StatefulWidget {
   final bool isMonthly;
-  final Function(double targetAmount, String? description) onSave;
+  final Function(double targetAmount, String? description, bool autoCalculate) onSave;
 
   const _GoalSettingDialog({
     required this.isMonthly,
@@ -556,6 +593,7 @@ class _GoalSettingDialogState extends State<_GoalSettingDialog> {
   final _formKey = GlobalKey<FormState>();
   final _targetController = TextEditingController();
   final _descriptionController = TextEditingController();
+  bool _autoCalculateCounterpart = true; // 默认启用自动计算
 
   @override
   void dispose() {
@@ -602,6 +640,33 @@ class _GoalSettingDialogState extends State<_GoalSettingDialog> {
               ),
               maxLines: 2,
             ),
+            const SizedBox(height: 16),
+
+            // 自动计算对应目标的选项
+            CheckboxListTile(
+              title: Text(
+                widget.isMonthly
+                  ? '自动计算年度目标 (月度目标 × 12)'
+                  : '自动计算月度目标 (年度目标 ÷ 12)',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              subtitle: Text(
+                widget.isMonthly
+                  ? '如果还没有设置年度目标，将自动创建'
+                  : '如果还没有设置本月目标，将自动创建',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+              value: _autoCalculateCounterpart,
+              onChanged: (value) {
+                setState(() {
+                  _autoCalculateCounterpart = value ?? true;
+                });
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+            ),
           ],
         ),
       ),
@@ -618,7 +683,7 @@ class _GoalSettingDialogState extends State<_GoalSettingDialog> {
                   ? null
                   : _descriptionController.text.trim();
 
-              widget.onSave(targetAmount, description);
+              widget.onSave(targetAmount, description, _autoCalculateCounterpart);
               Navigator.of(context).pop();
             }
           },

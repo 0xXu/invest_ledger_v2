@@ -84,13 +84,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         final authState = ref.read(authServiceProvider);
         final errorMessage = authState.errorMessage ?? e.toString();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_getErrorMessage(errorMessage)),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
+
+        // 检查是否是用户已存在的错误
+        if (errorMessage.contains('该邮箱已被注册') || e.toString().contains('USER_ALREADY_EXISTS')) {
+          // 显示特殊的用户已存在提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '该邮箱已被注册',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('您可以：'),
+                  const Text('• 直接登录'),
+                  const Text('• 使用忘记密码功能重置密码'),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: '切换到登录',
+                textColor: Colors.white,
+                onPressed: () {
+                  setState(() {
+                    _isSignUp = false;
+                  });
+                },
+              ),
+            ),
+          );
+        } else {
+          // 显示普通错误信息
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_getErrorMessage(errorMessage)),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     }
   }
@@ -338,8 +374,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return '邮箱或密码错误';
     } else if (error.contains('Email not confirmed')) {
       return '邮箱未验证';
-    } else if (error.contains('User already registered')) {
-      return '该邮箱已被注册';
+    } else if (error.contains('User already registered') || error.contains('USER_ALREADY_EXISTS')) {
+      return '该邮箱已被注册，请直接登录或使用忘记密码功能';
     } else if (error.contains('Password should be at least 6 characters')) {
       return '密码至少需要6位字符';
     } else if (error.contains('Unable to validate email address')) {
