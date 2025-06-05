@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../providers/theme_provider.dart';
 import '../../../core/auth/auth_service.dart';
 import '../../providers/color_theme_provider.dart';
+import '../../providers/version_provider.dart';
 import '../../../data/models/color_theme_setting.dart';
 import '../dev/dev_tools_page.dart';
 
@@ -19,12 +20,21 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   int _developerTapCount = 0;
   bool _showDevTools = false;
+  bool _hasTriggeredVersionCheck = false;
 
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider);
     final authState = ref.watch(authServiceProvider);
     final colorTheme = ref.watch(colorThemeNotifierProvider);
+
+    // 如果用户已登录且还没有触发过版本检查，触发一次版本检查
+    if (authState.user != null && !_hasTriggeredVersionCheck) {
+      _hasTriggeredVersionCheck = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(versionCheckProvider.notifier).autoCheckForUpdates();
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -183,15 +193,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(LucideIcons.download),
-                    title: const Text('版本管理'),
-                    subtitle: const Text('检查更新和版本信息'),
-                    trailing: const Icon(LucideIcons.chevronRight),
-                    onTap: () {
-                      context.go('/settings/version');
-                    },
-                  ),
+                  _buildVersionManagementTile(context),
                   const Divider(),
                   ListTile(
                     title: const Text('开发者'),
@@ -337,5 +339,128 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       case ThemeMode.dark:
         return '深色模式';
     }
+  }
+
+  /// 构建版本管理列表项，包含新版本提示
+  Widget _buildVersionManagementTile(BuildContext context) {
+    final versionCheckAsync = ref.watch(versionCheckProvider);
+
+    return versionCheckAsync.when(
+      data: (result) {
+        final hasUpdate = result.hasUpdate && result.latestVersion != null;
+
+        return ListTile(
+          leading: Stack(
+            children: [
+              Icon(
+                LucideIcons.download,
+                color: hasUpdate
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+              ),
+              if (hasUpdate)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          title: Row(
+            children: [
+              Text(
+                '版本管理',
+                style: hasUpdate ? TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ) : null,
+              ),
+              if (hasUpdate) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'NEW',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          subtitle: Text(
+            hasUpdate
+              ? '发现新版本 ${result.latestVersion!.tagName}，点击查看详情'
+              : '检查更新和版本信息',
+            style: hasUpdate ? TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+            ) : null,
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasUpdate)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '有更新',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Icon(
+                LucideIcons.chevronRight,
+                color: hasUpdate
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+              ),
+            ],
+          ),
+          onTap: () {
+            context.go('/settings/version');
+          },
+        );
+      },
+      loading: () => ListTile(
+        leading: const Icon(LucideIcons.download),
+        title: const Text('版本管理'),
+        subtitle: const Text('检查更新和版本信息'),
+        trailing: const Icon(LucideIcons.chevronRight),
+        onTap: () {
+          context.go('/settings/version');
+        },
+      ),
+      error: (error, stack) => ListTile(
+        leading: const Icon(LucideIcons.download),
+        title: const Text('版本管理'),
+        subtitle: const Text('检查更新和版本信息'),
+        trailing: const Icon(LucideIcons.chevronRight),
+        onTap: () {
+          context.go('/settings/version');
+        },
+      ),
+    );
   }
 }

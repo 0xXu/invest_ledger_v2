@@ -2,7 +2,7 @@ name: invest_ledger
 description: 轻量级个人投资记账应用
 publish_to: 'none'
 
-version: 1.0.1+2
+version: 1.0.4+1
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -72,6 +72,10 @@ dependencies:
 
   # 深度链接支持
   app_links: ^6.1.4
+
+  # 文件下载和安装
+  permission_handler: ^11.3.1
+  open_file: ^3.5.7
 
 dev_dependencies:
   flutter_test:

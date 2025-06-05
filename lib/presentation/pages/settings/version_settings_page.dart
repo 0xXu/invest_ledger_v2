@@ -37,19 +37,14 @@ class _VersionSettingsPageState extends ConsumerState<VersionSettingsPage> {
             children: [
               // 当前版本信息
               _buildCurrentVersionCard(packageInfoAsync, theme),
-              
+
               const SizedBox(height: 24),
-              
+
               // 更新检查设置
               _buildUpdateSettingsCard(autoCheckEnabled, theme),
-              
+
               const SizedBox(height: 24),
-              
-              // GitHub配置
-              _buildGithubConfigCard(theme),
-              
-              const SizedBox(height: 24),
-              
+
               // 检查更新
               _buildCheckUpdateCard(versionCheckAsync, lastCheckTimeAsync, theme),
             ],
@@ -87,9 +82,7 @@ class _VersionSettingsPageState extends ConsumerState<VersionSettingsPage> {
               data: (packageInfo) => Column(
                 children: [
                   _buildInfoRow('应用名称', packageInfo.appName, theme),
-                  _buildInfoRow('包名', packageInfo.packageName, theme),
                   _buildInfoRow('版本号', packageInfo.version, theme),
-                  _buildInfoRow('构建号', packageInfo.buildNumber, theme),
                 ],
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -163,65 +156,7 @@ class _VersionSettingsPageState extends ConsumerState<VersionSettingsPage> {
     );
   }
 
-  Widget _buildGithubConfigCard(ThemeData theme) {
-    final config = ref.watch(githubConfigProvider);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  LucideIcons.github,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'GitHub配置',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow('仓库所有者', config['owner'] ?? '未配置', theme),
-            _buildInfoRow('仓库名称', config['repo'] ?? '未配置', theme),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    LucideIcons.info,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'GitHub配置通过应用配置文件管理，如需修改请联系开发者',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildCheckUpdateCard(
     AsyncValue<dynamic> versionCheckAsync,

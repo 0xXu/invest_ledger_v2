@@ -23,12 +23,20 @@ class UnderDevelopmentPage extends StatelessWidget {
       appBar: AppBar(
         title: Text(title),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+      body: SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    AppBar().preferredSize.height -
+                    MediaQuery.of(context).padding.top -
+                    MediaQuery.of(context).padding.bottom - 64, // 减去padding
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
               // 开发中图标
               Container(
                 width: 120,
@@ -132,7 +140,9 @@ class UnderDevelopmentPage extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

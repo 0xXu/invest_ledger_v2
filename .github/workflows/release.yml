@@ -28,20 +28,20 @@ env:
 jobs:
   # 构建Android APK
   build-android:
-    name: 🤖 构建 Android APK
+    name:  构建 Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 检出代码
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: ☕ 设置 Java
+      - name: 设置 Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: ${{ env.JAVA_VERSION }}
 
-      - name: 🐦 设置 Flutter
+      - name: 设置 Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -50,17 +50,17 @@ jobs:
       - name: Clean Flutter build artifacts
         run: flutter clean
 
-      - name: 📦 获取依赖
+      - name: 获取依赖
         run: |
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: 🔧 创建环境配置文件
+      - name: 创建环境配置文件
         run: |
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-      - name: 🔑 设置 Android 签名
+      - name: 设置 Android 签名
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
           echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > android/key.properties
@@ -70,16 +70,49 @@ jobs:
           echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
           echo "org.gradle.vfs.watch=false" >> android/gradle.properties
 
-      - name: 🛠️ 生成 Gradle Wrapper
+      - name: 生成 Gradle Wrapper
         run: |
           cd android
           gradle wrapper
 
-      - name: 🏗️ 构建 APK
+      - name: 设置版本号
+        run: |
+          # 获取版本号
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+
+          # 从pubspec.yaml获取当前版本号和构建号
+          PUBSPEC_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //')
+          VERSION_NAME=$(echo $PUBSPEC_VERSION | cut -d'+' -f1)
+          BUILD_NUMBER=$(echo $PUBSPEC_VERSION | cut -d'+' -f2)
+
+          echo "📱 版本信息:"
+          echo "  - pubspec.yaml版本: $PUBSPEC_VERSION"
+          echo "  - 版本名称: $VERSION_NAME"
+          echo "  - 构建号: $BUILD_NUMBER"
+
+          # 如果是手动触发或标签触发，使用指定的版本号
+          if [[ -n "$VERSION" ]]; then
+            VERSION_NAME="$VERSION"
+            echo "  - 使用指定版本: $VERSION_NAME"
+          fi
+
+          # 设置环境变量供后续步骤使用
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+
+      - name:  构建 APK
         run: |
           echo "FLUTTER_ROOT=$FLUTTER_HOME" >> $GITHUB_ENV
           cd $GITHUB_WORKSPACE
-          ./android/gradlew -p android assembleRelease
+
+          # 使用环境变量传递版本信息给Gradle
+          ./android/gradlew -p android assembleRelease \
+            -PversionName=$VERSION_NAME \
+            -PversionCode=$BUILD_NUMBER
 
           # 列出实际输出目录以进行调试
           echo "检查 APK 输出位置："
@@ -96,7 +129,7 @@ jobs:
           echo "复制到 Flutter 构建目录："
           ls -l build/app/outputs/flutter-apk/
 
-      - name: 📋 生成构建信息
+      - name: 生成构建信息
         run: |
           echo "## 📱 Android 构建信息" > build_info.md
           echo "" >> build_info.md
@@ -120,38 +153,38 @@ jobs:
 
   # 构建Windows应用
   build-windows:
-    name: 🪟 构建 Windows 应用
+    name: 构建 Windows 应用
     runs-on: windows-latest
 
     steps:
-      - name: 📥 检出代码
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 🐦 设置 Flutter
+      - name:  设置 Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: 📦 获取依赖
+      - name:  获取依赖
         run: |
           flutter pub get
           flutter pub run build_runner build --delete-conflicting-outputs
 
-      - name: 🔧 创建环境配置文件
+      - name:  创建环境配置文件
         run: |
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
 
-      - name: 🏗️ 构建 Windows 应用
+      - name:  构建 Windows 应用
         run: |
           flutter build windows --release
 
-      - name: 📦 打包 Windows 应用
+      - name: 打包 Windows 应用
         run: |
           Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "invest_ledger_windows.zip"
 
-      - name: 📤 上传 Windows 构建产物
+      - name: 上传 Windows 构建产物
         uses: actions/upload-artifact@v4
         with:
           name: windows-app
@@ -160,21 +193,21 @@ jobs:
 
   # 创建GitHub Release
   create-release:
-    name: 🎉 创建 GitHub Release
+    name: 创建 GitHub Release
     needs: [build-android, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
     steps:
-      - name: 📥 检出代码
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 📥 下载所有构建产物
+      - name: 下载所有构建产物
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: 📋 准备发布文件
+      - name: 准备发布文件
         run: |
           mkdir -p release_files
 
@@ -189,10 +222,10 @@ jobs:
           cp artifacts/windows-app/*.zip release_files/ || echo "未找到Windows应用文件"
 
           # 列出所有文件
-          echo "📦 发布文件列表:"
+          echo "发布文件列表:"
           ls -la release_files/
 
-      - name: 📝 生成发布说明
+      - name:  生成发布说明
         id: release_notes
         run: |
           # 获取版本号
@@ -212,43 +245,19 @@ jobs:
 
           ${RELEASE_NOTES}
 
-          ## 📱 支持平台
-
-          - **Android**: APK文件支持 ARM64、ARMv7、x86_64 架构
-          - **Windows**: 支持 x64 架构
-
-          ## 📦 下载说明
-
-          ### Android 用户
-          - 下载对应架构的APK文件直接安装
-          - 推荐下载 \`app-arm64-v8a-release.apk\` (适用于大多数现代Android设备)
-
-          ### Windows 用户
-          - 下载 \`invest_ledger_windows.zip\`
-          - 解压后运行 \`invest_ledger.exe\`
-
-
-          ## 🔧 系统要求
-
-          - **Android**: Android 5.0 (API 21) 或更高版本
-          - **Windows**: Windows 10 或更高版本
 
           ## 📝 更新日志
 
-          查看完整更新日志请访问: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          - 添加文件下载和安装功能，包括权限处理
+          - 实现下载状态管理和进度显示
+          - 优化版本检查逻辑，增加用户登录状态判断
+          - 改进更新对话框UI，适配移动端和桌面端
+          - 在设置页面添加新版本提示标记
+          - 更新CI/CD流程支持版本号自动设置
 
           ---
 
-          **构建信息**
-          - 构建时间: $(date)
-          - Git提交: ${{ github.sha }}
-          - Flutter版本: ${{ env.FLUTTER_VERSION }}
-          EOF
-
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
-
-      - name: 🚀 创建 GitHub Release
+      - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
@@ -261,31 +270,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📊 发布统计
+      - name: 发布统计
         run: |
-          echo "🎉 Release创建成功!"
-          echo "📊 发布统计:"
+          echo "Release创建成功!"
+          echo "发布统计:"
           echo "- 版本: ${{ steps.release_notes.outputs.version }}"
           echo "- 预发布: ${{ steps.release_notes.outputs.is_prerelease }}"
           echo "- 文件数量: $(ls -1 release_files/ | wc -l)"
           echo "- 总大小: $(du -sh release_files/ | cut -f1)"
 
-  # 通知任务 (可选)
-  notify:
-    name: 📢 发布通知
-    needs: [create-release]
-    runs-on: ubuntu-latest
-    if: always() && (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
-
-    steps:
-      - name: 📢 发布成功通知
-        if: needs.create-release.result == 'success'
-        run: |
-          echo "✅ 发布成功完成!"
-          echo "🔗 Release链接: https://github.com/${{ github.repository }}/releases"
-
-      - name: ❌ 发布失败通知
-        if: needs.create-release.result == 'failure'
-        run: |
-          echo "❌ 发布过程中出现错误!"
-          echo "请检查构建日志并重试。"

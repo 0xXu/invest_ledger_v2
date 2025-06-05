@@ -28,8 +28,15 @@ android {
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+
+        // 优先使用命令行参数，否则使用Flutter配置
+        versionCode = project.findProperty("versionCode")?.toString()?.toIntOrNull() ?: flutter.versionCode
+        versionName = project.findProperty("versionName")?.toString() ?: flutter.versionName
+
+        println("📱 Android构建版本信息:")
+        println("  - versionCode: $versionCode")
+        println("  - versionName: $versionName")
+        println("  - applicationId: $applicationId")
     }
 
     signingConfigs {
