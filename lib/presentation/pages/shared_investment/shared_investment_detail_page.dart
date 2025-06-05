@@ -526,7 +526,7 @@ class _SharedInvestmentDetailContent extends ConsumerWidget {
                   child: _buildStatItem(
                     theme,
                     '总盈亏',
-                    '${totalProfitLoss >= 0 ? '+' : ''}¥${totalProfitLoss.toStringAsFixed(2)}',
+                    '¥${totalProfitLoss.abs().toStringAsFixed(2)}',
                     totalProfitLoss >= 0 ? LucideIcons.trendingUp : LucideIcons.trendingDown,
                     colors.getColorByValue(totalProfitLoss),
                   ),
@@ -644,7 +644,7 @@ class _SharedInvestmentDetailContent extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${profitLoss >= 0 ? '+' : ''}¥${profitLoss.toStringAsFixed(2)}',
+                          '¥${profitLoss.abs().toStringAsFixed(2)}',
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: profitLossColor,
                             fontWeight: FontWeight.bold,

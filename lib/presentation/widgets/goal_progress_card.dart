@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-class GoalProgressCard extends StatelessWidget {
+class GoalProgressCard extends StatefulWidget {
   final String title;
   final Map<String, dynamic> progress;
   final VoidCallback? onSetGoal;
@@ -16,9 +16,64 @@ class GoalProgressCard extends StatelessWidget {
   });
 
   @override
+  State<GoalProgressCard> createState() => _GoalProgressCardState();
+}
+
+class _GoalProgressCardState extends State<GoalProgressCard>
+    with TickerProviderStateMixin {
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 进度条动画控制器
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    // 进度条动画
+    _progressAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _progressController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // 启动动画
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _progressController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GoalProgressCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 如果进度数据发生变化，重新启动动画
+    if (oldWidget.progress != widget.progress) {
+      final hasGoal = widget.progress['hasGoal'] as bool? ?? false;
+      if (hasGoal) {
+        // 重新启动进度动画
+        _progressController.reset();
+        _progressController.forward();
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasGoal = progress['hasGoal'] as bool;
+    final hasGoal = widget.progress['hasGoal'] as bool;
 
     if (!hasGoal) {
       return _buildNoGoalCard(context, theme);
@@ -39,14 +94,14 @@ class GoalProgressCard extends StatelessWidget {
                 Icon(LucideIcons.target, color: Colors.grey[600], size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  title,
+                  widget.title,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  onPressed: onSetGoal,
+                  onPressed: widget.onSetGoal,
                   icon: const Icon(LucideIcons.plus, size: 16),
                   label: const Text('设置目标'),
                   style: TextButton.styleFrom(
@@ -57,7 +112,7 @@ class GoalProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '暂未设置$title',
+              '暂未设置${widget.title}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),
@@ -69,12 +124,12 @@ class GoalProgressCard extends StatelessWidget {
   }
 
   Widget _buildGoalCard(BuildContext context, ThemeData theme) {
-    final targetAmount = progress['targetAmount'] as double;
-    final actualAmount = progress['actualAmount'] as double;
-    final completionRate = progress['completionRate'] as double;
-    final timeProgress = progress['timeProgress'] as double;
-    final status = progress['status'] as String;
-    final lastYearComparison = progress['lastYearComparison'] as double;
+    final targetAmount = widget.progress['targetAmount'] as double;
+    final actualAmount = widget.progress['actualAmount'] as double;
+    final completionRate = widget.progress['completionRate'] as double;
+    final timeProgress = widget.progress['timeProgress'] as double;
+    final status = widget.progress['status'] as String;
+    final lastYearComparison = widget.progress['lastYearComparison'] as double;
 
     final progressColor = _getProgressColor(completionRate);
     final statusInfo = _getStatusInfo(status);
@@ -91,14 +146,14 @@ class GoalProgressCard extends StatelessWidget {
                 Icon(LucideIcons.target, color: progressColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  title,
+                  widget.title,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  onPressed: onEditGoal,
+                  onPressed: widget.onEditGoal,
                   icon: const Icon(LucideIcons.settings, size: 16),
                   style: IconButton.styleFrom(
                     padding: const EdgeInsets.all(8),
@@ -108,36 +163,12 @@ class GoalProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Progress bar
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '目标完成度',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    Text(
-                      '${completionRate.toStringAsFixed(1)}%',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: progressColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: (completionRate / 100).clamp(0.0, 1.0),
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                  minHeight: 8,
-                ),
-              ],
+            // Enhanced Progress bar with animation
+            _buildAnimatedProgressBar(
+              context,
+              theme,
+              completionRate,
+              progressColor,
             ),
             const SizedBox(height: 16),
 
@@ -246,6 +277,179 @@ class GoalProgressCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// 构建动画进度条
+  Widget _buildAnimatedProgressBar(
+    BuildContext context,
+    ThemeData theme,
+    double completionRate,
+    Color progressColor,
+  ) {
+    final normalizedProgress = (completionRate / 100).clamp(0.0, 1.0);
+
+    return AnimatedBuilder(
+      animation: _progressController,
+      builder: (context, child) {
+        final animatedProgress = normalizedProgress * _progressAnimation.value;
+
+        return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 标题和百分比
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '目标完成度',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: progressColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: progressColor.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          '${completionRate.toStringAsFixed(1)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: progressColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 自定义进度条
+                  Container(
+                    height: 12,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.grey[200],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Stack(
+                        children: [
+                          // 背景
+                          Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: Colors.grey[200],
+                          ),
+
+                          // 进度条
+                          FractionallySizedBox(
+                            widthFactor: animatedProgress,
+                            child: Container(
+                              height: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    progressColor.withValues(alpha: 0.8),
+                                    progressColor,
+                                  ],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: progressColor.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // 高光效果
+                          if (animatedProgress > 0)
+                            FractionallySizedBox(
+                              widthFactor: animatedProgress,
+                              child: Container(
+                                height: double.infinity,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.3),
+                                      Colors.transparent,
+                                      Colors.white.withValues(alpha: 0.1),
+                                    ],
+                                    stops: const [0.0, 0.5, 1.0],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 进度指示器（如果完成度很高）
+                  if (completionRate >= 100) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          LucideIcons.checkCircle,
+                          size: 16,
+                          color: progressColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '目标已完成！',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: progressColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else if (completionRate >= 80) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          LucideIcons.zap,
+                          size: 16,
+                          color: progressColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '即将完成目标！',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: progressColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+      },
     );
   }
 

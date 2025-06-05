@@ -307,7 +307,7 @@ class _SharedInvestmentCard extends ConsumerWidget {
                       Expanded(
                         child: _InfoItem(
                           label: '总盈亏',
-                          value: '${totalProfitLoss >= 0 ? '+' : ''}¥${totalProfitLoss.toStringAsFixed(2)}',
+                          value: '¥${totalProfitLoss.abs().toStringAsFixed(2)}',
                           icon: totalProfitLoss >= 0 ? LucideIcons.trendingUp : LucideIcons.trendingDown,
                           valueColor: profitLossColor,
                         ),

@@ -88,7 +88,7 @@ class StockInvestmentCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '￥${isProfit ? '+' : '-'}${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                        '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: profitColor,
                           fontWeight: FontWeight.bold,

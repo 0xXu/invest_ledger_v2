@@ -82,35 +82,7 @@ class AuthService extends StateNotifier<AppAuthState> {
     }
   }
 
-  // 检查用户是否已存在
-  Future<bool> checkUserExists(String email) async {
-    try {
-      // 尝试使用错误的密码登录来检查用户是否存在
-      // 这是一个巧妙的方法，因为Supabase会返回不同的错误信息
-      await _client.auth.signInWithPassword(
-        email: email,
-        password: 'invalid_password_for_check_only',
-      );
-      // 如果没有抛出异常，说明密码正确（不太可能）
-      return true;
-    } catch (e) {
-      final errorMessage = e.toString();
-      debugPrint('检查用户存在性错误: $errorMessage');
 
-      // 如果错误信息包含"Invalid login credentials"，说明用户存在但密码错误
-      if (errorMessage.contains('Invalid login credentials')) {
-        return true;
-      }
-
-      // 如果错误信息包含"Email not confirmed"，说明用户存在但未验证
-      if (errorMessage.contains('Email not confirmed')) {
-        return true;
-      }
-
-      // 其他错误（如用户不存在）返回false
-      return false;
-    }
-  }
 
   // 邮箱密码注册（使用邮件链接验证）
   Future<void> signUpWithEmail({
@@ -121,21 +93,7 @@ class AuthService extends StateNotifier<AppAuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // 首先检查用户是否已存在
-      debugPrint('检查用户是否已存在: $email');
-      final userExists = await checkUserExists(email);
-
-      if (userExists) {
-        debugPrint('用户已存在，不发送注册邮件');
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '该邮箱已被注册，请直接登录或使用忘记密码功能',
-        );
-        // 抛出自定义异常，让UI层处理
-        throw Exception('USER_ALREADY_EXISTS');
-      }
-
-      debugPrint('用户不存在，继续注册流程');
+      debugPrint('开始注册流程: $email');
       final response = await _client.auth.signUp(
         email: email,
         password: password,
@@ -143,10 +101,14 @@ class AuthService extends StateNotifier<AppAuthState> {
         data: displayName != null ? {'display_name': displayName, 'name': displayName} : null,
       );
 
+      // 检查Supabase的响应
       if (response.user != null) {
+        debugPrint('注册响应成功，用户ID: ${response.user!.id}');
+
         // 检查用户是否已经验证（开发环境可能自动验证）
         if (response.user!.emailConfirmedAt != null) {
           // 邮箱已验证，直接登录
+          debugPrint('用户注册成功并已验证，直接登录');
           state = AppAuthState(
             status: AuthStatus.authenticated,
             user: response.user,
@@ -172,16 +134,36 @@ class AuthService extends StateNotifier<AppAuthState> {
             isLoading: false,
           );
         }
+      } else {
+        // 没有返回用户对象，可能是用户已存在
+        debugPrint('注册响应中没有用户对象，可能用户已存在');
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '该邮箱已被注册，请直接登录或使用忘记密码功能',
+        );
+        throw Exception('USER_ALREADY_EXISTS');
       }
     } catch (e) {
-      // 如果是用户已存在的异常，不需要重新设置错误信息
-      if (e.toString().contains('USER_ALREADY_EXISTS')) {
-        rethrow;
+      final errorMessage = e.toString();
+      debugPrint('注册过程中发生错误: $errorMessage');
+
+      // 检查是否是用户已存在的错误
+      if (errorMessage.contains('User already registered') ||
+          errorMessage.contains('USER_ALREADY_EXISTS') ||
+          errorMessage.contains('email_address_not_authorized') ||
+          errorMessage.contains('signup_disabled') ||
+          errorMessage.contains('Email rate limit exceeded')) {
+        debugPrint('检测到用户已存在相关错误');
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '该邮箱已被注册，请直接登录或使用忘记密码功能',
+        );
+        throw Exception('USER_ALREADY_EXISTS');
       }
 
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _getErrorMessage(e.toString()),
+        errorMessage: _getErrorMessage(errorMessage),
       );
       rethrow;
     }

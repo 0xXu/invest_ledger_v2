@@ -58,10 +58,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     const SizedBox(height: 16),
                     ListTile(
                       leading: CircleAvatar(
-                        child: Text(authState.user!.email![0].toUpperCase()),
+                        child: Text(_getDisplayInitial(authState.user!)),
                       ),
-                      title: Text(authState.user!.email!),
-                      subtitle: const Text('Supabase 用户'),
+                      title: Text(_getDisplayName(authState.user!)),
+                      subtitle: Text(_getDisplaySubtitle(authState.user!)),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -462,5 +462,88 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         },
       ),
     );
+  }
+
+  /// 获取显示名称（优先显示用户名，否则显示邮箱）
+  String _getDisplayName(dynamic user) {
+    // 尝试从用户元数据中获取用户名，按优先级顺序
+    final userMetadata = user.userMetadata;
+    if (userMetadata != null) {
+      // 优先级：username > display_name > name
+      final username = userMetadata['username'] as String?;
+      final displayName = userMetadata['display_name'] as String?;
+      final name = userMetadata['name'] as String?;
+
+      if (username != null && username.isNotEmpty && username != user.email) {
+        return username;
+      }
+
+      if (displayName != null && displayName.isNotEmpty && displayName != user.email) {
+        return displayName;
+      }
+
+      if (name != null && name.isNotEmpty && name != user.email) {
+        return name;
+      }
+    }
+
+    // 如果没有有效的用户名，返回邮箱
+    return user.email ?? '未知用户';
+  }
+
+  /// 获取显示的副标题
+  String _getDisplaySubtitle(dynamic user) {
+    // 检查是否有有效的用户名
+    final userMetadata = user.userMetadata;
+    bool hasUsername = false;
+
+    if (userMetadata != null) {
+      final username = userMetadata['username'] as String?;
+      final displayName = userMetadata['display_name'] as String?;
+      final name = userMetadata['name'] as String?;
+
+      hasUsername = (username != null && username.isNotEmpty && username != user.email) ||
+                   (displayName != null && displayName.isNotEmpty && displayName != user.email) ||
+                   (name != null && name.isNotEmpty && name != user.email);
+    }
+
+    if (hasUsername) {
+      // 如果有用户名，副标题显示邮箱
+      return user.email ?? 'Supabase 用户';
+    } else {
+      // 如果没有用户名，副标题显示用户类型
+      return 'Supabase 用户';
+    }
+  }
+
+  /// 获取头像显示的首字母
+  String _getDisplayInitial(dynamic user) {
+    // 尝试从用户元数据中获取用户名，按优先级顺序
+    final userMetadata = user.userMetadata;
+    if (userMetadata != null) {
+      final username = userMetadata['username'] as String?;
+      final displayName = userMetadata['display_name'] as String?;
+      final name = userMetadata['name'] as String?;
+
+      if (username != null && username.isNotEmpty && username != user.email) {
+        return username[0].toUpperCase();
+      }
+
+      if (displayName != null && displayName.isNotEmpty && displayName != user.email) {
+        return displayName[0].toUpperCase();
+      }
+
+      if (name != null && name.isNotEmpty && name != user.email) {
+        return name[0].toUpperCase();
+      }
+    }
+
+    // 如果没有有效的用户名，使用邮箱首字母
+    final email = user.email;
+    if (email != null && email.isNotEmpty) {
+      return email[0].toUpperCase();
+    }
+
+    return 'U'; // 默认显示 U (User)
   }
 }

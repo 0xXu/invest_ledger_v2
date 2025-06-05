@@ -19,6 +19,21 @@ class TxtImportResult with _$TxtImportResult {
       _$TxtImportResultFromJson(json);
 }
 
+/// CSV导入结果
+@freezed
+class CsvImportResult with _$CsvImportResult {
+  const factory CsvImportResult({
+    required int totalRows,            // 总行数
+    required int successCount,         // 成功导入数量
+    required int duplicateCount,       // 重复数据数量
+    required int errorCount,           // 错误数量
+    required List<ImportError> errors, // 错误详情
+  }) = _CsvImportResult;
+
+  factory CsvImportResult.fromJson(Map<String, dynamic> json) =>
+      _$CsvImportResultFromJson(json);
+}
+
 /// 导入错误信息
 @freezed
 class ImportError with _$ImportError {
@@ -72,12 +87,18 @@ class TransactionKey {
   final DateTime date;
   final String stockCode;
   final String stockName;
+  final String amount;      // 添加交易数量
+  final String unitPrice;   // 添加单价
+  final String profitLoss;  // 添加盈亏金额
 
   const TransactionKey({
     required this.userId,
     required this.date,
     required this.stockCode,
     required this.stockName,
+    required this.amount,
+    required this.unitPrice,
+    required this.profitLoss,
   });
 
   @override
@@ -89,7 +110,10 @@ class TransactionKey {
         other.date.month == date.month &&
         other.date.day == date.day &&
         other.stockCode == stockCode &&
-        other.stockName == stockName;
+        other.stockName == stockName &&
+        other.amount == amount &&
+        other.unitPrice == unitPrice &&
+        other.profitLoss == profitLoss;
   }
 
   @override
@@ -101,6 +125,9 @@ class TransactionKey {
       date.day,
       stockCode,
       stockName,
+      amount,
+      unitPrice,
+      profitLoss,
     );
   }
 

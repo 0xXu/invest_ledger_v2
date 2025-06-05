@@ -213,6 +213,9 @@ class ImportExportService {
         date: t.date,
         stockCode: t.stockCode,
         stockName: t.stockName,
+        amount: t.amount.toString(),
+        unitPrice: t.unitPrice.toString(),
+        profitLoss: t.profitLoss.toString(),
       )).toSet();
 
       int successCount = 0;
@@ -251,6 +254,9 @@ class ImportExportService {
             date: transaction.date,
             stockCode: transaction.stockCode,
             stockName: transaction.stockName,
+            amount: transaction.amount.toString(),
+            unitPrice: transaction.unitPrice.toString(),
+            profitLoss: transaction.profitLoss.toString(),
           );
 
           if (existingKeys.contains(transactionKey)) {

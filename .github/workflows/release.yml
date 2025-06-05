@@ -239,21 +239,26 @@ jobs:
             IS_PRERELEASE="false"
           fi
 
+          echo "版本号: $VERSION"
+          echo "是否预发布: $IS_PRERELEASE"
+
+          # 设置输出变量
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
           # 生成发布说明
           cat > release_notes.md << EOF
-          # 🎉 InvestLedger v${VERSION}
+          # InvestLedger v${VERSION}
 
           ${RELEASE_NOTES}
 
 
           ## 📝 更新日志
 
-          - 添加文件下载和安装功能，包括权限处理
-          - 实现下载状态管理和进度显示
-          - 优化版本检查逻辑，增加用户登录状态判断
-          - 改进更新对话框UI，适配移动端和桌面端
-          - 在设置页面添加新版本提示标记
-          - 更新CI/CD流程支持版本号自动设置
+          - 统一盈亏金额显示格式，移除正负号前缀
+          - 简化用户注册流程，移除冗余的用户存在检查
+          - 增强CSV导入错误处理和显示功能
+          - 为目标进度卡片添加动画效果和视觉增强
 
           ---
 
@@ -261,7 +266,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.version) || github.ref_name }}
-          name: ${{ format('InvestLedger v{0}', steps.release_notes.outputs.version) }}
+          name: InvestLedger v${{ steps.release_notes.outputs.version }}
           body_path: release_notes.md
           files: release_files/*
           draft: false

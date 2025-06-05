@@ -396,7 +396,7 @@ class _StatsSummary extends ConsumerWidget {
               Expanded(
                 child: _SummaryCard(
                   title: '净收益',
-                  value: '${((stats['netProfit'] as num?)?.toDouble() ?? 0.0) >= 0 ? '+' : ''}¥${((stats['netProfit'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                  value: '¥${((stats['netProfit'] as num?)?.toDouble() ?? 0.0).abs().toStringAsFixed(2)}',
                   icon: ((stats['netProfit'] as num?)?.toDouble() ?? 0.0) >= 0 ? LucideIcons.plus : LucideIcons.minus,
                   color: colors.getColorByValue(((stats['netProfit'] as num?)?.toDouble() ?? 0.0)),
                   subtitle: '盈利 - 亏损',

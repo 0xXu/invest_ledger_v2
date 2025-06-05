@@ -350,7 +350,7 @@ class _CreateSharedInvestmentPageState extends ConsumerState<CreateSharedInvestm
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     Text(
-                      '${_totalProfitLoss >= 0 ? '+' : ''}¥${_totalProfitLoss.toStringAsFixed(2)}',
+                      '¥${_totalProfitLoss.abs().toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: _totalProfitLoss >= 0 ? Colors.green : Colors.red,
                         fontWeight: FontWeight.bold,
