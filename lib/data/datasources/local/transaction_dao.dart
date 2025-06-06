@@ -32,6 +32,7 @@ class TransactionDao {
       'shared_investment_id': transactionWithId.sharedInvestmentId,
       'created_at': transactionWithId.createdAt.toIso8601String(),
       'updated_at': transactionWithId.updatedAt?.toIso8601String(),
+      'is_deleted': transactionWithId.isDeleted ? 1 : 0,
     });
 
     return id;
@@ -54,7 +55,7 @@ class TransactionDao {
     final db = await DatabaseHelper.database;
     final maps = await db.query(
       _tableName,
-      where: 'user_id = ?',
+      where: 'user_id = ? AND (is_deleted IS NULL OR is_deleted = 0)',
       whereArgs: [userId],
       orderBy: 'date DESC',
     );
@@ -66,7 +67,7 @@ class TransactionDao {
     final db = await DatabaseHelper.database;
     final maps = await db.query(
       _tableName,
-      where: 'stock_code = ?',
+      where: 'stock_code = ? AND (is_deleted IS NULL OR is_deleted = 0)',
       whereArgs: [stockCode],
       orderBy: 'date DESC',
     );
@@ -82,7 +83,7 @@ class TransactionDao {
     final db = await DatabaseHelper.database;
     final maps = await db.query(
       _tableName,
-      where: 'user_id = ? AND date >= ? AND date <= ?',
+      where: 'user_id = ? AND date >= ? AND date <= ? AND (is_deleted IS NULL OR is_deleted = 0)',
       whereArgs: [
         userId,
         startDate.toIso8601String(),
@@ -96,7 +97,24 @@ class TransactionDao {
 
   Future<List<models.Transaction>> getAllTransactions() async {
     final db = await DatabaseHelper.database;
-    final maps = await db.query(_tableName, orderBy: 'date DESC');
+    final maps = await db.query(
+      _tableName,
+      where: 'is_deleted IS NULL OR is_deleted = 0',
+      orderBy: 'date DESC',
+    );
+
+    return maps.map(_mapToTransaction).toList();
+  }
+
+  // 获取所有交易记录（包括已删除的，用于同步）
+  Future<List<models.Transaction>> getAllTransactionsForSync(String userId) async {
+    final db = await DatabaseHelper.database;
+    final maps = await db.query(
+      _tableName,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'updated_at DESC',
+    );
 
     return maps.map(_mapToTransaction).toList();
   }
@@ -117,6 +135,7 @@ class TransactionDao {
         'notes': transaction.notes,
         'shared_investment_id': transaction.sharedInvestmentId,
         'updated_at': DateTime.now().toIso8601String(),
+        'is_deleted': transaction.isDeleted ? 1 : 0,
       },
       where: 'id = ?',
       whereArgs: [transaction.id],
@@ -125,8 +144,12 @@ class TransactionDao {
 
   Future<void> deleteTransaction(String id) async {
     final db = await DatabaseHelper.database;
-    await db.delete(
+    await db.update(
       _tableName,
+      {
+        'is_deleted': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -139,9 +162,9 @@ class TransactionDao {
       date: DateTime.parse(map['date']),
       stockCode: map['stock_code'],
       stockName: map['stock_name'],
-      amount: Decimal.parse(map['amount']),
-      unitPrice: Decimal.parse(map['unit_price']),
-      profitLoss: Decimal.parse(map['profit_loss']),
+      amount: Decimal.parse(_safeToString(map['amount'])),
+      unitPrice: Decimal.parse(_safeToString(map['unit_price'])),
+      profitLoss: Decimal.parse(_safeToString(map['profit_loss'])),
       tags: List<String>.from(jsonDecode(map['tags'] ?? '[]')),
       notes: map['notes'],
       sharedInvestmentId: map['shared_investment_id'],
@@ -149,6 +172,15 @@ class TransactionDao {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'])
           : null,
+      isDeleted: (map['is_deleted'] as int?) == 1,
     );
+  }
+
+  // 安全地将值转换为字符串
+  String _safeToString(dynamic value) {
+    if (value == null) return '0';
+    if (value is String) return value;
+    if (value is num) return value.toString();
+    return value.toString();
   }
 }

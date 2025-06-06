@@ -126,7 +126,7 @@ class _SyncSettingsPageState extends ConsumerState<SyncSettingsPage> {
             subtitle: const Text('登录以启用云端同步'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
-              context.push('/auth/login');
+              context.push('/auth/quick-login');
             },
           ),
         ],

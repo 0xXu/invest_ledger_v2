@@ -36,6 +36,9 @@ class StockInvestmentCard extends ConsumerWidget {
     final profitLossValue = transaction.profitLoss.toDouble();
     final profitColor = colors.getColorByValue(profitLossValue);
     final isProfit = profitLossValue > 0;
+    final isBuy = transaction.amount.toDouble() > 0;
+    final transactionType = isBuy ? '买入' : '卖出';
+    final transactionAmount = transaction.amount.abs();
 
     return Card(
       child: InkWell(
@@ -49,16 +52,18 @@ class StockInvestmentCard extends ConsumerWidget {
               // 标题行
               Row(
                 children: [
-                  // 股票图标
+                  // 交易类型图标
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: profitColor.withValues(alpha: 0.1),
+                      color: isBuy
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      isProfit ? Icons.trending_up : Icons.trending_down,
-                      color: profitColor,
+                      isBuy ? Icons.add_shopping_cart : Icons.sell,
+                      color: isBuy ? Colors.green : Colors.red,
                       size: 20,
                     ),
                   ),
@@ -68,14 +73,44 @@ class StockInvestmentCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${transaction.stockName} (${transaction.stockCode})',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isBuy
+                                    ? Colors.green.withValues(alpha: 0.1)
+                                    : Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isBuy
+                                      ? Colors.green.withValues(alpha: 0.3)
+                                      : Colors.red.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                transactionType,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isBuy ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${transaction.stockName} (${transaction.stockCode})',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          '${transaction.amount.toStringAsFixed(0)}股 × ¥${transaction.unitPrice.toStringAsFixed(2)}',
+                          '${transactionAmount.toStringAsFixed(0)}股 × ￥${transaction.unitPrice.toStringAsFixed(2)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -83,17 +118,27 @@ class StockInvestmentCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  // 盈亏金额
+                  // 右侧信息
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: profitColor,
-                          fontWeight: FontWeight.bold,
+                      if (profitLossValue != 0) ...[
+                        Text(
+                          '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: profitColor,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Text(
+                          '￥${(transactionAmount * transaction.unitPrice).toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                       Text(
                         DateFormat('MM/dd').format(transaction.date),
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -105,20 +150,28 @@ class StockInvestmentCard extends ConsumerWidget {
                 ],
               ),
 
-              // 投资信息
+              // 交易信息
               const SizedBox(height: 12),
               Row(
                 children: [
                   _InfoChip(
-                    label: '投资额',
-                    value: '¥${(transaction.amount * transaction.unitPrice).toStringAsFixed(2)}',
+                    label: isBuy ? '投资金额' : '卖出金额',
+                    value: '￥${(transactionAmount * transaction.unitPrice).toStringAsFixed(2)}',
                   ),
                   const SizedBox(width: 8),
-                  _InfoChip(
-                    label: '收益率',
-                    value: '${isProfit ? '+' : ''}${_calculateReturnRate().toStringAsFixed(2)}%',
-                    valueColor: profitColor, // 使用盈亏颜色
-                  ),
+                  if (profitLossValue != 0) ...[
+                    _InfoChip(
+                      label: isProfit ? '盈利' : '亏损',
+                      value: '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                      valueColor: profitColor,
+                    ),
+                  ] else ...[
+                    _InfoChip(
+                      label: '盈亏',
+                      value: '￥0.00',
+                      valueColor: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                 ],
               ),
 
@@ -179,6 +232,11 @@ class StockInvestmentCard extends ConsumerWidget {
   }
 
   Widget _buildLoadingCard(BuildContext context, ThemeData theme, ColorScheme colorScheme) {
+    final profitLossValue = transaction.profitLoss.toDouble();
+    final isBuy = transaction.amount.toDouble() > 0;
+    final transactionType = isBuy ? '买入' : '卖出';
+    final transactionAmount = transaction.amount.abs();
+
     return Card(
       child: InkWell(
         onTap: onTap,
@@ -191,7 +249,7 @@ class StockInvestmentCard extends ConsumerWidget {
               // 标题行
               Row(
                 children: [
-                  // 股票图标
+                  // 交易类型图标
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -199,9 +257,7 @@ class StockInvestmentCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      transaction.profitLoss.toDouble() > 0
-                          ? Icons.trending_up
-                          : Icons.trending_down,
+                      isBuy ? Icons.add_shopping_cart : Icons.sell,
                       color: Colors.grey,
                       size: 20,
                     ),
@@ -212,14 +268,40 @@ class StockInvestmentCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${transaction.stockName} (${transaction.stockCode})',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: Colors.grey.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                transactionType,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${transaction.stockName} (${transaction.stockCode})',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          '${transaction.amount.toStringAsFixed(0)}股 × ¥${transaction.unitPrice.toStringAsFixed(2)}',
+                          '${transactionAmount.toStringAsFixed(0)}股 × ￥${transaction.unitPrice.toStringAsFixed(2)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -227,17 +309,27 @@ class StockInvestmentCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  // 盈亏金额
+                  // 右侧信息
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '￥${transaction.profitLoss.toDouble() > 0 ? '+' : '-'}${transaction.profitLoss.abs().toStringAsFixed(2)}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.bold,
+                      if (profitLossValue != 0) ...[
+                        Text(
+                          '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      ] else ...[
+                        Text(
+                          '￥${(transactionAmount * transaction.unitPrice).toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                       Text(
                         DateFormat('MM/dd').format(transaction.date),
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -249,20 +341,28 @@ class StockInvestmentCard extends ConsumerWidget {
                 ],
               ),
 
-              // 投资信息
+              // 交易信息
               const SizedBox(height: 12),
               Row(
                 children: [
                   _InfoChip(
-                    label: '投资额',
-                    value: '¥${(transaction.amount * transaction.unitPrice).toStringAsFixed(2)}',
+                    label: isBuy ? '投资金额' : '卖出金额',
+                    value: '￥${(transactionAmount * transaction.unitPrice).toStringAsFixed(2)}',
                   ),
                   const SizedBox(width: 8),
-                  _InfoChip(
-                    label: '收益率',
-                    value: '${transaction.profitLoss.toDouble() > 0 ? '+' : ''}${_calculateReturnRate().toStringAsFixed(2)}%',
-                    valueColor: Colors.grey, // 加载状态使用灰色
-                  ),
+                  if (profitLossValue != 0) ...[
+                    _InfoChip(
+                      label: profitLossValue > 0 ? '盈利' : '亏损',
+                      value: '￥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                      valueColor: Colors.grey,
+                    ),
+                  ] else ...[
+                    _InfoChip(
+                      label: '盈亏',
+                      value: '￥0.00',
+                      valueColor: Colors.grey,
+                    ),
+                  ],
                 ],
               ),
 
@@ -322,16 +422,7 @@ class StockInvestmentCard extends ConsumerWidget {
     );
   }
 
-  double _calculateReturnRate() {
-    final investmentAmount = transaction.amount.toDouble();
-    final unitPrice = transaction.unitPrice.toDouble();
-    final profitLoss = transaction.profitLoss.toDouble();
 
-    final investment = investmentAmount * unitPrice;
-    if (investment == 0.0) return 0.0;
-
-    return (profitLoss / investment) * 100.0;
-  }
 }
 
 class _InfoChip extends StatelessWidget {

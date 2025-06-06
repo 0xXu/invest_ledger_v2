@@ -67,7 +67,7 @@ class _RedirectToLoginState extends State<_RedirectToLogin> {
     // 延迟跳转，避免在 build 过程中导航
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context.go('/auth/login');
+        context.go('/auth/quick-login');
       }
     });
   }
@@ -162,7 +162,7 @@ class _EmailVerificationScreenState extends ConsumerState<_EmailVerificationScre
               onPressed: () {
                 final authService = ref.read(authServiceProvider.notifier);
                 authService.signOut();
-                context.go('/auth/login');
+                context.go('/auth/quick-login');
               },
               child: const Text('返回登录'),
             ),

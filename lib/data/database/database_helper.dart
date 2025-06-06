@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _databaseName = 'invest_ledger.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   static Database? _database;
 
@@ -55,6 +55,7 @@ class DatabaseHelper {
           description TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT,
+          is_deleted INTEGER DEFAULT 0,
           FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
       ''');
@@ -84,6 +85,21 @@ class DatabaseHelper {
       await db.execute('CREATE INDEX idx_ai_suggestions_status ON ai_suggestions(user_id, status)');
       await db.execute('CREATE INDEX idx_ai_suggestions_created_at ON ai_suggestions(created_at)');
     }
+
+    if (oldVersion < 4) {
+      // 添加软删除字段到现有表
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN is_deleted INTEGER DEFAULT 0');
+      } catch (e) {
+        print('transactions表is_deleted字段可能已存在: $e');
+      }
+
+      try {
+        await db.execute('ALTER TABLE investment_goals ADD COLUMN is_deleted INTEGER DEFAULT 0');
+      } catch (e) {
+        print('investment_goals表is_deleted字段可能已存在: $e');
+      }
+    }
   }
 
   static Future<void> _createTables(Database db) async {
@@ -104,6 +120,7 @@ class DatabaseHelper {
         shared_investment_id TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT,
+        is_deleted INTEGER DEFAULT 0,
         FOREIGN KEY (shared_investment_id) REFERENCES shared_investments (id)
       )
     ''');
@@ -167,7 +184,8 @@ class DatabaseHelper {
         target_amount TEXT NOT NULL,
         description TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT
+        updated_at TEXT,
+        is_deleted INTEGER DEFAULT 0
       )
     ''');
 

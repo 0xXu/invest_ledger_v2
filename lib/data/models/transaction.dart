@@ -20,6 +20,7 @@ class Transaction with _$Transaction {
     String? sharedInvestmentId,
     required DateTime createdAt,
     DateTime? updatedAt,
+    @Default(false) bool isDeleted,   // 软删除标记
   }) = _Transaction;
 
   factory Transaction.fromJson(Map<String, dynamic> json) =>

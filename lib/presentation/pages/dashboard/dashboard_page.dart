@@ -97,7 +97,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
             onPressed: () async {
               await ref.read(authServiceProvider.notifier).signOut();
               if (context.mounted) {
-                context.go('/auth/login');
+                context.go('/auth/quick-login');
               }
             },
             icon: const Icon(LucideIcons.logOut),

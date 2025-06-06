@@ -4,6 +4,7 @@ import '../../data/models/investment_goal.dart';
 import '../../data/repositories/investment_goal_repository.dart';
 import '../../data/datasources/local/investment_goal_dao.dart';
 import '../../core/auth/auth_service.dart';
+import '../../core/sync/sync_manager.dart';
 import 'transaction_provider.dart';
 import 'loading_provider.dart';
 
@@ -118,6 +119,9 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
       ref.invalidate(currentYearlyGoalProvider);
       ref.invalidate(monthlyGoalProgressProvider);
       ref.invalidate(yearlyGoalProgressProvider);
+
+      // 自动触发同步
+      _triggerAutoSync();
     }, '正在保存目标...');
   }
 
@@ -127,7 +131,33 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
       final repository = ref.read(investmentGoalRepositoryProvider);
       await repository.deleteGoal(goalId);
       ref.invalidateSelf();
+
+      // 自动触发同步
+      _triggerAutoSync();
     }, '正在删除目标...');
+  }
+
+  /// 触发自动同步
+  void _triggerAutoSync() {
+    try {
+      final syncManager = ref.read(syncManagerProvider);
+      // 异步执行同步，不阻塞当前操作
+      Future.microtask(() async {
+        try {
+          await syncManager.manualSync();
+          // 同步完成后刷新数据
+          ref.invalidateSelf();
+          ref.invalidate(currentMonthlyGoalProvider);
+          ref.invalidate(currentYearlyGoalProvider);
+          ref.invalidate(monthlyGoalProgressProvider);
+          ref.invalidate(yearlyGoalProgressProvider);
+        } catch (e) {
+          // 同步失败时不影响用户操作，只是静默处理
+        }
+      });
+    } catch (e) {
+      // 如果获取syncManager失败，也不影响用户操作
+    }
   }
 }
 

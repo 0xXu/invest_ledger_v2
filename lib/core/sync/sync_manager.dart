@@ -4,8 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/supabase_config.dart';
 import '../../data/datasources/local/transaction_dao.dart';
+import '../../data/datasources/local/investment_goal_dao.dart';
 import '../../data/datasources/remote/supabase_transaction_dao.dart';
+import '../../data/datasources/remote/supabase_investment_goal_dao.dart';
 import '../../data/models/transaction.dart' as models;
+import '../../data/models/investment_goal.dart' as goal_models;
 import 'connectivity_service.dart';
 import 'sync_status.dart';
 
@@ -14,7 +17,9 @@ typedef SyncCompletedCallback = void Function();
 
 class SyncManager {
   final TransactionDao _localTransactionDao;
+  final InvestmentGoalDao _localGoalDao;
   final SupabaseTransactionDao _remoteTransactionDao;
+  final SupabaseInvestmentGoalDao _remoteGoalDao;
   final ConnectivityService _connectivityService;
 
   late StreamController<SyncStatus> _syncStatusController;
@@ -22,13 +27,17 @@ class SyncManager {
 
   // 同步完成回调列表
   final List<SyncCompletedCallback> _syncCompletedCallbacks = [];
-  
+
   SyncManager({
     required TransactionDao localTransactionDao,
+    required InvestmentGoalDao localGoalDao,
     required SupabaseTransactionDao remoteTransactionDao,
+    required SupabaseInvestmentGoalDao remoteGoalDao,
     required ConnectivityService connectivityService,
   }) : _localTransactionDao = localTransactionDao,
+       _localGoalDao = localGoalDao,
        _remoteTransactionDao = remoteTransactionDao,
+       _remoteGoalDao = remoteGoalDao,
        _connectivityService = connectivityService {
     _syncStatusController = StreamController<SyncStatus>.broadcast();
     _initSync();
@@ -93,35 +102,20 @@ class SyncManager {
       state: SyncState.syncing,
       errorMessage: null,
     ));
-    
+
     try {
       final userId = SupabaseConfig.currentUser!.id;
-      
-      // 1. 获取本地未同步的数据
-      final localTransactions = await _localTransactionDao.getTransactionsByUserId(userId);
-      final unsyncedTransactions = localTransactions.where((t) => 
-        t.updatedAt?.isAfter(_getLastSyncTime()) ?? true
-      ).toList();
-      
-      // 2. 推送本地更改到远程
-      if (unsyncedTransactions.isNotEmpty) {
-        await _remoteTransactionDao.batchSync(unsyncedTransactions);
-      }
-      
-      // 3. 拉取远程更改
-      final remoteTransactions = await _remoteTransactionDao.getModifiedSince(
-        userId, 
-        _getLastSyncTime(),
-      );
-      
-      // 4. 合并远程数据到本地
-      for (final remoteTransaction in remoteTransactions) {
-        await _mergeTransaction(remoteTransaction);
-      }
-      
-      // 5. 更新同步时间
+      final lastSyncTime = _getLastSyncTime();
+
+      // 同步交易记录
+      await _syncTransactions(userId, lastSyncTime);
+
+      // 同步投资目标
+      await _syncInvestmentGoals(userId, lastSyncTime);
+
+      // 更新同步时间
       await _updateLastSyncTime();
-      
+
       _updateStatus(_currentStatus.copyWith(
         isSyncing: false,
         state: SyncState.success,
@@ -131,7 +125,7 @@ class SyncManager {
 
       // 触发同步完成回调
       _notifySyncCompleted();
-      
+
     } catch (e) {
       _updateStatus(_currentStatus.copyWith(
         isSyncing: false,
@@ -141,23 +135,73 @@ class SyncManager {
       rethrow;
     }
   }
+
+  // 同步交易记录
+  Future<void> _syncTransactions(String userId, DateTime lastSyncTime) async {
+    // 1. 获取本地未同步的交易记录（包括已删除的）
+    final localTransactions = await _localTransactionDao.getAllTransactionsForSync(userId);
+    final unsyncedTransactions = localTransactions.where((t) =>
+      t.updatedAt?.isAfter(lastSyncTime) ?? true
+    ).toList();
+
+    // 2. 推送本地更改到远程
+    if (unsyncedTransactions.isNotEmpty) {
+      await _remoteTransactionDao.batchSync(unsyncedTransactions);
+    }
+
+    // 3. 拉取远程更改
+    final remoteTransactions = await _remoteTransactionDao.getModifiedSince(
+      userId,
+      lastSyncTime,
+    );
+
+    // 4. 合并远程数据到本地
+    for (final remoteTransaction in remoteTransactions) {
+      await _mergeTransaction(remoteTransaction);
+    }
+  }
+
+  // 同步投资目标
+  Future<void> _syncInvestmentGoals(String userId, DateTime lastSyncTime) async {
+    // 1. 获取本地未同步的投资目标（包括已删除的）
+    final localGoals = await _localGoalDao.getAllGoalsForSync(userId);
+    final unsyncedGoals = localGoals.where((g) =>
+      g.updatedAt?.isAfter(lastSyncTime) ?? true
+    ).toList();
+
+    // 2. 推送本地更改到远程
+    if (unsyncedGoals.isNotEmpty) {
+      await _remoteGoalDao.batchSync(unsyncedGoals);
+    }
+
+    // 3. 拉取远程更改
+    final remoteGoals = await _remoteGoalDao.getModifiedSince(
+      userId,
+      lastSyncTime,
+    );
+
+    // 4. 合并远程数据到本地
+    for (final remoteGoal in remoteGoals) {
+      await _mergeInvestmentGoal(remoteGoal);
+    }
+  }
   
   // 合并远程交易记录到本地
   Future<void> _mergeTransaction(models.Transaction remoteTransaction) async {
     final localTransaction = await _localTransactionDao.getTransactionById(
       remoteTransaction.id!,
     );
-    
+
     if (localTransaction == null) {
-      // 本地不存在，直接插入
+      // 本地不存在，直接插入（包括已删除的记录）
       await _localTransactionDao.createTransaction(remoteTransaction);
     } else {
       // 检查冲突
-      if (_hasConflict(localTransaction, remoteTransaction)) {
+      if (_hasTransactionConflict(localTransaction, remoteTransaction)) {
         // 处理冲突：这里简单地使用远程数据覆盖本地数据
         // 实际应用中可能需要更复杂的冲突解决策略
         await _localTransactionDao.updateTransaction(remoteTransaction);
-        
+
         _updateStatus(_currentStatus.copyWith(
           state: SyncState.conflict,
         ));
@@ -167,24 +211,67 @@ class SyncManager {
       }
     }
   }
+
+  // 合并远程投资目标到本地
+  Future<void> _mergeInvestmentGoal(goal_models.InvestmentGoal remoteGoal) async {
+    final localGoal = await _localGoalDao.getGoalById(remoteGoal.id!);
+
+    if (localGoal == null) {
+      // 本地不存在，直接插入
+      await _localGoalDao.createGoal(remoteGoal);
+    } else {
+      // 检查冲突
+      if (_hasGoalConflict(localGoal, remoteGoal)) {
+        // 处理冲突：使用远程数据覆盖本地数据
+        await _localGoalDao.updateGoal(remoteGoal);
+
+        _updateStatus(_currentStatus.copyWith(
+          state: SyncState.conflict,
+        ));
+      } else {
+        // 无冲突，更新本地数据
+        await _localGoalDao.updateGoal(remoteGoal);
+      }
+    }
+  }
   
-  // 检查是否有冲突
-  bool _hasConflict(models.Transaction local, models.Transaction remote) {
+  // 检查交易记录是否有冲突
+  bool _hasTransactionConflict(models.Transaction local, models.Transaction remote) {
     // 简单的冲突检测：比较更新时间
     final localUpdated = local.updatedAt ?? local.createdAt;
     final remoteUpdated = remote.updatedAt ?? remote.createdAt;
-    
-    return localUpdated.isAfter(remoteUpdated) && 
-           !_isSameData(local, remote);
+
+    return localUpdated.isAfter(remoteUpdated) &&
+           !_isSameTransactionData(local, remote);
   }
-  
-  // 检查数据是否相同
-  bool _isSameData(models.Transaction local, models.Transaction remote) {
+
+  // 检查投资目标是否有冲突
+  bool _hasGoalConflict(goal_models.InvestmentGoal local, goal_models.InvestmentGoal remote) {
+    // 简单的冲突检测：比较更新时间
+    final localUpdated = local.updatedAt ?? local.createdAt;
+    final remoteUpdated = remote.updatedAt ?? remote.createdAt;
+
+    return localUpdated.isAfter(remoteUpdated) &&
+           !_isSameGoalData(local, remote);
+  }
+
+  // 检查交易记录数据是否相同
+  bool _isSameTransactionData(models.Transaction local, models.Transaction remote) {
     return local.stockCode == remote.stockCode &&
            local.stockName == remote.stockName &&
            local.amount == remote.amount &&
            local.unitPrice == remote.unitPrice &&
            local.profitLoss == remote.profitLoss;
+  }
+
+  // 检查投资目标数据是否相同
+  bool _isSameGoalData(goal_models.InvestmentGoal local, goal_models.InvestmentGoal remote) {
+    return local.type == remote.type &&
+           local.period == remote.period &&
+           local.year == remote.year &&
+           local.month == remote.month &&
+           local.targetAmount == remote.targetAmount &&
+           local.description == remote.description;
   }
   
   // 获取上次同步时间
@@ -224,15 +311,19 @@ class SyncManager {
 // Riverpod providers
 final syncManagerProvider = Provider<SyncManager>((ref) {
   final localDao = ref.watch(transactionDaoProvider);
+  final localGoalDao = ref.watch(investmentGoalDaoProvider);
   final remoteDao = SupabaseTransactionDao();
+  final remoteGoalDao = SupabaseInvestmentGoalDao();
   final connectivity = ref.watch(connectivityServiceProvider);
-  
+
   final manager = SyncManager(
     localTransactionDao: localDao,
+    localGoalDao: localGoalDao,
     remoteTransactionDao: remoteDao,
+    remoteGoalDao: remoteGoalDao,
     connectivityService: connectivity,
   );
-  
+
   ref.onDispose(() => manager.dispose());
   return manager;
 });
@@ -267,7 +358,11 @@ final syncListenerProvider = Provider<void>((ref) {
   });
 });
 
-// 本地 DAO provider（需要在相应文件中定义）
+// 本地 DAO provider
 final transactionDaoProvider = Provider<TransactionDao>((ref) {
   return TransactionDao();
+});
+
+final investmentGoalDaoProvider = Provider<InvestmentGoalDao>((ref) {
+  return InvestmentGoalDao();
 });

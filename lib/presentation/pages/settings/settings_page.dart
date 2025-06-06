@@ -81,7 +81,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             onPressed: () async {
                               await ref.read(authServiceProvider.notifier).signOut();
                               if (context.mounted) {
-                                context.go('/auth/login');
+                                context.go('/auth/quick-login');
                               }
                             },
                             icon: const Icon(Icons.logout),

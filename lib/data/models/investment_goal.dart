@@ -17,6 +17,7 @@ class InvestmentGoal with _$InvestmentGoal {
     String? description,
     required DateTime createdAt,
     DateTime? updatedAt,
+    @Default(false) bool isDeleted, // 软删除标记
   }) = _InvestmentGoal;
 
   factory InvestmentGoal.fromJson(Map<String, dynamic> json) =>

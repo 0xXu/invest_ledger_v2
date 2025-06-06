@@ -83,13 +83,22 @@ class DeviceUsersManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_storageKey);
-      
+
       if (usersJson == null) return [];
-      
+
       final usersList = jsonDecode(usersJson) as List;
-      return usersList
+      final users = usersList
           .map((json) => DeviceUser.fromJson(json as Map<String, dynamic>))
           .toList();
+
+      // 按最后登录时间排序，最近登录的在前面
+      users.sort((a, b) {
+        final aLastLogin = a.lastLoginAt ?? DateTime(1970);
+        final bLastLogin = b.lastLoginAt ?? DateTime(1970);
+        return bLastLogin.compareTo(aLastLogin); // 降序排列，最新的在前
+      });
+
+      return users;
     } catch (e) {
       print('获取设备用户失败: $e');
       return [];

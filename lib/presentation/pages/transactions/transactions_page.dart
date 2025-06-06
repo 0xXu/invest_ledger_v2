@@ -7,9 +7,16 @@ import '../../../core/sync/sync_manager.dart';
 import '../../../core/sync/sync_status.dart';
 import '../../providers/transaction_provider.dart';
 import '../../widgets/stock_investment_card.dart';
+import '../../widgets/profit_loss_record_card.dart';
 import '../../widgets/refresh_button.dart';
 import '../../widgets/animated_card.dart';
 import '../../utils/loading_utils.dart';
+
+// 记录显示模式
+enum RecordDisplayMode {
+  profitLoss, // 盈亏记录
+  detailed,   // 详细交易记录
+}
 
 class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
@@ -23,6 +30,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
 
   @override
   bool get wantKeepAlive => true; // 保持页面状态，避免重建
+
+  // 当前显示模式，默认显示盈亏记录
+  RecordDisplayMode _displayMode = RecordDisplayMode.profitLoss;
 
   @override
   Widget build(BuildContext context) {
@@ -46,26 +56,37 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('交易记录'),
+        title: Text(_displayMode == RecordDisplayMode.profitLoss ? '盈亏记录' : '交易记录'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: _buildModeSelector(),
+        ),
         actions: [
           IconButton(
             onPressed: () {
               context.push('/transactions/search');
             },
             icon: const Icon(Icons.search),
-            tooltip: '搜索交易',
+            tooltip: '搜索记录',
           ),
           RefreshButton.icon(
             onRefresh: () async {
               ref.invalidate(transactionNotifierProvider);
             },
-            loadingMessage: '正在刷新交易记录...',
+            loadingMessage: '正在刷新数据...',
             tooltip: '刷新数据',
           ),
         ],
       ),
       body: transactionsAsync.when(
-        data: (transactions) => _TransactionsList(transactions: transactions),
+        data: (transactions) {
+          // 根据模式过滤交易记录
+          final filteredTransactions = _filterTransactionsByMode(transactions);
+          return _TransactionsList(
+            transactions: filteredTransactions,
+            displayMode: _displayMode,
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
           child: Column(
@@ -88,36 +109,162 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.go('/transactions/add');
+          final mode = _displayMode == RecordDisplayMode.profitLoss ? 'simple' : 'detailed';
+          context.go('/transactions/add?mode=$mode');
         },
         child: const Icon(Icons.add),
       ),
     );
   }
+
+  /// 构建模式切换器
+  Widget _buildModeSelector() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _displayMode = RecordDisplayMode.profitLoss;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: _displayMode == RecordDisplayMode.profitLoss
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet,
+                      size: 16,
+                      color: _displayMode == RecordDisplayMode.profitLoss
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '盈亏记录',
+                      style: TextStyle(
+                        color: _displayMode == RecordDisplayMode.profitLoss
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: _displayMode == RecordDisplayMode.profitLoss
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _displayMode = RecordDisplayMode.detailed;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: _displayMode == RecordDisplayMode.detailed
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.receipt_long,
+                      size: 16,
+                      color: _displayMode == RecordDisplayMode.detailed
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '交易记录',
+                      style: TextStyle(
+                        color: _displayMode == RecordDisplayMode.detailed
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: _displayMode == RecordDisplayMode.detailed
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 根据模式过滤交易记录
+  List<Transaction> _filterTransactionsByMode(List<Transaction> transactions) {
+    switch (_displayMode) {
+      case RecordDisplayMode.profitLoss:
+        // 盈亏记录：显示所有有盈亏的交易（盈亏不为0的记录）
+        return transactions.where((t) => t.profitLoss.toDouble() != 0.0).toList();
+      case RecordDisplayMode.detailed:
+        // 详细交易记录：显示所有交易
+        return transactions;
+    }
+  }
 }
 
 class _TransactionsList extends StatelessWidget {
   final List<Transaction> transactions;
+  final RecordDisplayMode displayMode;
 
-  const _TransactionsList({required this.transactions});
+  const _TransactionsList({
+    required this.transactions,
+    required this.displayMode,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (transactions.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              '暂无交易记录',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
+            Icon(
+              displayMode == RecordDisplayMode.profitLoss
+                  ? Icons.account_balance_wallet
+                  : Icons.receipt_long,
+              size: 64,
+              color: Colors.grey,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              '点击右下角的 + 按钮添加第一笔交易',
-              style: TextStyle(color: Colors.grey),
+              displayMode == RecordDisplayMode.profitLoss
+                  ? '暂无盈亏记录'
+                  : '暂无交易记录',
+              style: const TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              displayMode == RecordDisplayMode.profitLoss
+                  ? '点击右下角的 + 按钮快速记录盈亏'
+                  : '点击右下角的 + 按钮添加详细交易',
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -138,31 +285,48 @@ class _TransactionsList extends StatelessWidget {
           slideDirection: SlideDirection.fromBottom, // 从下方滑入更自然
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: StockInvestmentCard(
-              transaction: transaction,
-              onTap: () {
-                context.push('/transactions/${transaction.id}');
-              },
-              onEdit: () {
-                context.push('/transactions/edit/${transaction.id}');
-              },
-              onDelete: () {
-                _showDeleteDialog(context, transaction);
-              },
-            ),
+            child: displayMode == RecordDisplayMode.profitLoss
+                ? ProfitLossRecordCard(
+                    transaction: transaction,
+                    onTap: () {
+                      context.push('/transactions/${transaction.id}');
+                    },
+                    onEdit: () {
+                      context.push('/transactions/edit/${transaction.id}?mode=simple');
+                    },
+                    onDelete: () {
+                      _showDeleteDialog(context, transaction, displayMode);
+                    },
+                  )
+                : StockInvestmentCard(
+                    transaction: transaction,
+                    onTap: () {
+                      context.push('/transactions/${transaction.id}');
+                    },
+                    onEdit: () {
+                      context.push('/transactions/edit/${transaction.id}?mode=detailed');
+                    },
+                    onDelete: () {
+                      _showDeleteDialog(context, transaction, displayMode);
+                    },
+                  ),
           ),
         );
       },
     );
   }
 
-  void _showDeleteDialog(BuildContext context, Transaction transaction) {
+  void _showDeleteDialog(BuildContext context, Transaction transaction, RecordDisplayMode displayMode) {
     showDialog(
       context: context,
       builder: (context) => Consumer(
         builder: (context, ref, child) => AlertDialog(
-          title: const Text('删除交易'),
-          content: Text('确定要删除这笔交易吗？此操作无法撤销。\n\n${transaction.stockName} (${transaction.stockCode})'),
+          title: Text(displayMode == RecordDisplayMode.profitLoss ? '删除盈亏记录' : '删除交易记录'),
+          content: Text(
+            displayMode == RecordDisplayMode.profitLoss
+                ? '确定要删除这条盈亏记录吗？此操作无法撤销。\n\n${transaction.stockName}'
+                : '确定要删除这笔交易吗？此操作无法撤销。\n\n${transaction.stockName} (${transaction.stockCode})'
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -176,11 +340,17 @@ class _TransactionsList extends StatelessWidget {
                   await ref.withLoading(() async {
                     await ref.read(transactionNotifierProvider.notifier)
                         .deleteTransaction(transaction.id!);
-                  }, '正在删除交易记录...');
+                  }, displayMode == RecordDisplayMode.profitLoss
+                      ? '正在删除盈亏记录...'
+                      : '正在删除交易记录...');
 
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('交易记录已删除')),
+                      SnackBar(
+                        content: Text(displayMode == RecordDisplayMode.profitLoss
+                            ? '盈亏记录已删除'
+                            : '交易记录已删除'),
+                      ),
                     );
                   }
                 } catch (e) {

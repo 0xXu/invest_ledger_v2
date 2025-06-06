@@ -22,6 +22,7 @@ class InvestmentGoalDao {
       'description': goal.description,
       'created_at': goal.createdAt.toIso8601String(),
       'updated_at': goal.updatedAt?.toIso8601String(),
+      'is_deleted': goal.isDeleted ? 1 : 0,
     });
 
     return id;
@@ -44,7 +45,7 @@ class InvestmentGoalDao {
     final db = await DatabaseHelper.database;
     final maps = await db.query(
       _tableName,
-      where: 'user_id = ?',
+      where: 'user_id = ? AND (is_deleted IS NULL OR is_deleted = 0)',
       whereArgs: [userId],
       orderBy: 'created_at DESC',
     );
@@ -61,7 +62,7 @@ class InvestmentGoalDao {
   }) async {
     final db = await DatabaseHelper.database;
 
-    String whereClause = 'user_id = ? AND type = ? AND period = ? AND year = ?';
+    String whereClause = 'user_id = ? AND type = ? AND period = ? AND year = ? AND (is_deleted IS NULL OR is_deleted = 0)';
     List<dynamic> whereArgs = [userId, type.name, period.name, year];
 
     if (period == GoalPeriod.monthly && month != null) {
@@ -95,6 +96,7 @@ class InvestmentGoalDao {
         'target_amount': goal.targetAmount.toString(),
         'description': goal.description,
         'updated_at': DateTime.now().toIso8601String(),
+        'is_deleted': goal.isDeleted ? 1 : 0,
       },
       where: 'id = ?',
       whereArgs: [goal.id],
@@ -103,11 +105,28 @@ class InvestmentGoalDao {
 
   Future<void> deleteGoal(String id) async {
     final db = await DatabaseHelper.database;
-    await db.delete(
+    await db.update(
       _tableName,
+      {
+        'is_deleted': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // 获取所有投资目标（包括已删除的，用于同步）
+  Future<List<InvestmentGoal>> getAllGoalsForSync(String userId) async {
+    final db = await DatabaseHelper.database;
+    final maps = await db.query(
+      _tableName,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'updated_at DESC',
+    );
+
+    return maps.map(_mapToGoal).toList();
   }
 
   InvestmentGoal _mapToGoal(Map<String, dynamic> map) {
@@ -124,6 +143,7 @@ class InvestmentGoalDao {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
+      isDeleted: (map['is_deleted'] as int?) == 1,
     );
   }
 }

@@ -134,15 +134,24 @@ class SupabaseTransactionDao {
       'date': supabaseJson['date'],
       'stockCode': supabaseJson['stock_code'],
       'stockName': supabaseJson['stock_name'],
-      'amount': supabaseJson['amount'].toString(),
-      'unitPrice': supabaseJson['unit_price'].toString(),
-      'profitLoss': supabaseJson['profit_loss'].toString(),
+      'amount': _safeToString(supabaseJson['amount']),
+      'unitPrice': _safeToString(supabaseJson['unit_price']),
+      'profitLoss': _safeToString(supabaseJson['profit_loss']),
       'tags': supabaseJson['tags'] ?? [],
       'notes': supabaseJson['notes'],
       'sharedInvestmentId': supabaseJson['shared_investment_id'],
       'createdAt': supabaseJson['created_at'],
       'updatedAt': supabaseJson['updated_at'],
+      'isDeleted': supabaseJson['is_deleted'] ?? false,
     };
+  }
+
+  // 安全地将值转换为字符串
+  String _safeToString(dynamic value) {
+    if (value == null) return '0';
+    if (value is String) return value;
+    if (value is num) return value.toString();
+    return value.toString();
   }
 
   // 将 Transaction 模型转换为 Supabase JSON 格式
@@ -161,7 +170,7 @@ class SupabaseTransactionDao {
       'shared_investment_id': transaction.sharedInvestmentId,
       'created_at': transaction.createdAt.toIso8601String(),
       'updated_at': transaction.updatedAt?.toIso8601String(),
-      'is_deleted': false,
+      'is_deleted': transaction.isDeleted,
     };
   }
 }
