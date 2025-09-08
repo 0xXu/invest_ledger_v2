@@ -100,7 +100,7 @@ class StockInvestmentCard extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${transaction.stockName} (${transaction.stockCode})',
+                                transaction.stockName,
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -291,7 +291,7 @@ class StockInvestmentCard extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${transaction.stockName} (${transaction.stockCode})',
+                                transaction.stockName,
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),

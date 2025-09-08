@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../utils/app_logger.dart';
+
 class SupabaseConfig {
   // 从环境变量中获取配置
   static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
@@ -15,10 +17,10 @@ class SupabaseConfig {
     }
 
     // 调试信息
-    print('🔧 Supabase 配置:');
-    print('  URL: $supabaseUrl');
-    print('  Key: ${supabaseAnonKey.substring(0, 20)}...');
-    print('  Debug: ${dotenv.env['DEBUG_MODE'] == 'true'}');
+    AppLogger.debug('🔧 Supabase 配置:');
+    AppLogger.debug('  URL: $supabaseUrl');
+    AppLogger.debug('  Key: ${supabaseAnonKey.substring(0, 20)}...');
+    AppLogger.debug('  Debug: ${dotenv.env['DEBUG_MODE'] == 'true'}');
 
     await Supabase.initialize(
       url: supabaseUrl,
@@ -29,7 +31,7 @@ class SupabaseConfig {
       ),
     );
 
-    print('✅ Supabase 初始化完成');
+    AppLogger.success('✅ Supabase 初始化完成');
   }
   
   // 检查是否已初始化

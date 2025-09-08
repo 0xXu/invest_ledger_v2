@@ -38,10 +38,6 @@ class TransactionRepository {
     return await _transactionDao.getAllTransactions();
   }
 
-  Future<List<Transaction>> getTransactionsBySharedInvestmentId(String sharedInvestmentId) async {
-    final allTransactions = await getAllTransactions();
-    return allTransactions.where((t) => t.sharedInvestmentId == sharedInvestmentId).toList();
-  }
 
   Future<void> updateTransaction(Transaction transaction) async {
     await _transactionDao.updateTransaction(transaction);

@@ -58,9 +58,8 @@ class StockPerformanceChart extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: height ?? 400,
+              const SizedBox(height: 16),
+              Expanded(
                 child: _buildChart(context, colors),
               ),
             ],
@@ -69,13 +68,13 @@ class StockPerformanceChart extends ConsumerWidget {
       ),
       loading: () => Card(
         child: SizedBox(
-          height: (height ?? 400) + 80,
+          height: 200,
           child: const Center(child: CircularProgressIndicator()),
         ),
       ),
       error: (_, __) => Card(
         child: SizedBox(
-          height: (height ?? 400) + 80,
+          height: 200,
           child: const Center(child: Icon(Icons.error)),
         ),
       ),
@@ -160,7 +159,7 @@ class StockPerformanceChart extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      stockInfo['stockCode'] as String,
+                      stockInfo['stockName'] as String,
                       style: const TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
@@ -209,7 +208,7 @@ class StockPerformanceChart extends ConsumerWidget {
               final tradeCount = stockInfo['tradeCount'] as int;
 
               return BarTooltipItem(
-                '$stockName ($stockCode)\n'
+                '$stockName\n'
                 '盈亏: ${_formatCurrency(profitLoss)}\n'
                 '交易次数: $tradeCount',
                 TextStyle(

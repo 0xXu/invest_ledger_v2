@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import '../utils/app_logger.dart';
+import '../sync/sync_manager.dart';
 import 'auth_state.dart';
 import 'device_users_manager.dart';
 import 'secure_credentials_manager.dart';
@@ -93,7 +94,7 @@ class AuthService extends StateNotifier<AppAuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      debugPrint('开始注册流程: $email');
+      AppLogger.debug('开始注册流程: $email');
       final response = await _client.auth.signUp(
         email: email,
         password: password,
@@ -103,12 +104,12 @@ class AuthService extends StateNotifier<AppAuthState> {
 
       // 检查Supabase的响应
       if (response.user != null) {
-        debugPrint('注册响应成功，用户ID: ${response.user!.id}');
+        AppLogger.success('注册响应成功，用户ID: ${response.user!.id}');
 
         // 检查用户是否已经验证（开发环境可能自动验证）
         if (response.user!.emailConfirmedAt != null) {
           // 邮箱已验证，直接登录
-          debugPrint('用户注册成功并已验证，直接登录');
+          AppLogger.success('用户注册成功并已验证，直接登录');
           state = AppAuthState(
             status: AuthStatus.authenticated,
             user: response.user,
@@ -116,16 +117,16 @@ class AuthService extends StateNotifier<AppAuthState> {
           );
         } else {
           // 邮箱未验证，确保发送确认邮件
-          debugPrint('用户注册成功，邮箱未验证，尝试发送确认邮件到: $email');
+          AppLogger.info('用户注册成功，邮箱未验证，尝试发送确认邮件到: $email');
           try {
             await _client.auth.resend(
               type: OtpType.signup,
               email: email,
             );
-            debugPrint('确认邮件发送成功');
+            AppLogger.success('确认邮件发送成功');
           } catch (resendError) {
             // 如果重发失败，可能是因为邮件已经发送过了，继续执行
-            debugPrint('重发邮件失败（可能已发送）: $resendError');
+            AppLogger.warning('重发邮件失败（可能已发送）: $resendError');
           }
 
           state = AppAuthState(
@@ -136,7 +137,7 @@ class AuthService extends StateNotifier<AppAuthState> {
         }
       } else {
         // 没有返回用户对象，可能是用户已存在
-        debugPrint('注册响应中没有用户对象，可能用户已存在');
+        AppLogger.warning('注册响应中没有用户对象，可能用户已存在');
         state = state.copyWith(
           isLoading: false,
           errorMessage: '该邮箱已被注册，请直接登录或使用忘记密码功能',
@@ -145,7 +146,7 @@ class AuthService extends StateNotifier<AppAuthState> {
       }
     } catch (e) {
       final errorMessage = e.toString();
-      debugPrint('注册过程中发生错误: $errorMessage');
+      AppLogger.error('注册过程中发生错误: $errorMessage');
 
       // 检查是否是用户已存在的错误
       if (errorMessage.contains('User already registered') ||
@@ -153,7 +154,7 @@ class AuthService extends StateNotifier<AppAuthState> {
           errorMessage.contains('email_address_not_authorized') ||
           errorMessage.contains('signup_disabled') ||
           errorMessage.contains('Email rate limit exceeded')) {
-        debugPrint('检测到用户已存在相关错误');
+        AppLogger.info('检测到用户已存在相关错误');
         state = state.copyWith(
           isLoading: false,
           errorMessage: '该邮箱已被注册，请直接登录或使用忘记密码功能',
@@ -175,29 +176,29 @@ class AuthService extends StateNotifier<AppAuthState> {
     required String password,
     bool saveCredentials = true,
   }) async {
-    debugPrint('开始登录流程，邮箱: $email');
+    AppLogger.debug('开始登录流程，邮箱: $email');
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      debugPrint('调用 Supabase signInWithPassword');
+      AppLogger.debug('调用 Supabase signInWithPassword');
       final response = await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
       final user = response.user;
-      debugPrint('登录响应: user=${user?.id}, emailConfirmed=${user?.emailConfirmedAt}');
+      AppLogger.debug('登录响应: user=${user?.id}, emailConfirmed=${user?.emailConfirmedAt}');
 
       if (user != null) {
         if (user.emailConfirmedAt == null) {
-          debugPrint('用户邮箱未验证，设置状态为 emailNotVerified');
+          AppLogger.info('用户邮箱未验证，设置状态为 emailNotVerified');
           state = AppAuthState(
             status: AuthStatus.emailNotVerified,
             user: user,
             isLoading: false,
           );
         } else {
-          debugPrint('用户登录成功，设置状态为 authenticated');
+          AppLogger.success('用户登录成功，设置状态为 authenticated');
 
           // 保存凭据（如果启用）
           if (saveCredentials) {
@@ -211,7 +212,7 @@ class AuthService extends StateNotifier<AppAuthState> {
                 password: password,
               );
               await credentialsManager.setLastLoginUser(user.id);
-              debugPrint('✅ 用户凭据已保存');
+              AppLogger.success('✅ 用户凭据已保存');
             }
           }
 
@@ -222,10 +223,10 @@ class AuthService extends StateNotifier<AppAuthState> {
           );
         }
       } else {
-        debugPrint('登录响应中没有用户信息');
+        AppLogger.warning('登录响应中没有用户信息');
       }
     } catch (e) {
-      debugPrint('登录失败: $e');
+      AppLogger.error('登录失败: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: _getErrorMessage(e.toString()),

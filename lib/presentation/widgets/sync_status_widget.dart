@@ -330,9 +330,11 @@ class _SyncStatusWidgetState extends ConsumerState<SyncStatusWidget>
         );
       }
     } finally {
-      // 停止旋转动画
-      _refreshController.stop();
-      _refreshController.reset();
+      // 停止旋转动画 - 检查动画控制器是否已被dispose
+      if (mounted && !_refreshController.isDismissed) {
+        _refreshController.stop();
+        _refreshController.reset();
+      }
     }
   }
 }

@@ -231,66 +231,68 @@ class _AnalyticsContent extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 统计概览
-          statsAsync.when(
-            data: (stats) => _StatsOverview(stats: stats),
-            loading: () => const Card(
-              child: SizedBox(
-                height: 120,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ),
-            error: (error, stack) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text('统计数据加载失败: $error'),
-              ),
+    return Column(
+      children: [
+        // 统计概览
+        statsAsync.when(
+          data: (stats) => _StatsOverview(stats: stats),
+          loading: () => const Card(
+            child: SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
             ),
           ),
-          const SizedBox(height: 16),
+          error: (error, stack) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('统计数据加载失败: $error'),
+            ),
+          ),
+        ),
+        
+        // 图表区域
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                
+                // 月度盈亏趋势图
+                SizedBox(
+                  height: 400,
+                  child: ProfitLossChart(
+                    transactions: transactions.cast(),
+                    title: '月度盈亏趋势',
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-          // 月度盈亏趋势图
-          RepaintBoundary(
-            child: ProfitLossChart(
-              transactions: transactions.cast(),
-              title: '月度盈亏趋势',
-            ),
-          ),
-          const SizedBox(height: 16),
+                // 股票表现排行
+                SizedBox(
+                  height: 400,
+                  child: StockPerformanceChart(
+                    transactions: transactions.cast(),
+                    title: '股票表现排行（前10）',
+                    maxStocks: 10,
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-          // 月度趋势图
-          RepaintBoundary(
-            child: ImprovedMonthlyTrendChart(
-              transactions: transactions.cast(),
-              title: '全年月度趋势',
+                // 股票投资分布图
+                SizedBox(
+                  height: 400,
+                  child: StockDistributionChart(
+                    transactions: transactions.cast(),
+                    title: '股票投资分布',
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          // 股票表现排行
-          RepaintBoundary(
-            child: StockPerformanceChart(
-              transactions: transactions.cast(),
-              title: '股票表现排行（前10）',
-              maxStocks: 10,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 股票投资分布图
-          RepaintBoundary(
-            child: StockDistributionChart(
-              transactions: transactions.cast(),
-              title: '股票投资分布',
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

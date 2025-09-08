@@ -61,14 +61,13 @@ class StockDistributionChart extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                // 饼图
-                Expanded(
-                  flex: 2,
-                  child: SizedBox(
-                    height: 200,
+            const SizedBox(height: 16),
+            Expanded(
+              child: Row(
+                children: [
+                  // 饼图
+                  Expanded(
+                    flex: 2,
                     child: PieChart(
                       PieChartData(
                         sections: chartData.asMap().entries.map((entry) {
@@ -81,7 +80,7 @@ class StockDistributionChart extends StatelessWidget {
                             value: data.value,
                             title: '${data.percentage.toStringAsFixed(1)}%',
                             radius: 80,
-                            titleStyle: TextStyle(
+                            titleStyle: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -98,59 +97,61 @@ class StockDistributionChart extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                
-                // 图例
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: chartData.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final data = entry.value;
-                      final color = _getColor(index);
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    data.label,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 16),
+                  
+                  // 图例
+                  Expanded(
+                    flex: 1,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: chartData.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final data = entry.value;
+                          final color = _getColor(index);
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
                                   ),
-                                  Text(
-                                    '¥${data.value.toStringAsFixed(0)}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        data.label,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '¥${data.value.toStringAsFixed(0)}',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -161,19 +162,23 @@ class StockDistributionChart extends StatelessWidget {
   List<ChartData> _prepareChartData() {
     if (transactions.isEmpty) return [];
 
-    // 按股票分组计算总投资金额
+    // 按股票分组计算净持仓金额（买入-卖出）
     final stockData = <String, double>{};
     
     for (final transaction in transactions) {
-      final key = '${transaction.stockName}\n(${transaction.stockCode})';
-      final investmentAmount = (transaction.amount * transaction.unitPrice).toDouble();
-      stockData[key] = (stockData[key] ?? 0) + investmentAmount;
+      final key = transaction.stockName; // 只使用股票名称作为key
+      // 计算净投资金额：正数表示买入，负数表示卖出
+      final netAmount = transaction.amount.toDouble() * transaction.unitPrice.toDouble();
+      stockData[key] = (stockData[key] ?? 0) + netAmount;
     }
 
-    // 计算总金额
+    // 过滤掉净值为0或负数的股票（已卖完或卖空）
+    stockData.removeWhere((key, value) => value <= 0);
+
+    // 计算总金额（只计算正值）
     final totalAmount = stockData.values.fold(0.0, (sum, value) => sum + value);
     
-    if (totalAmount == 0) return [];
+    if (totalAmount <= 0) return [];
 
     // 转换为图表数据并按金额排序
     final sortedEntries = stockData.entries.toList()

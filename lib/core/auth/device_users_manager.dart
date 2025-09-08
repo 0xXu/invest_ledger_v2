@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/app_logger.dart';
+
 /// 设备用户信息
 class DeviceUser {
   final String id;
@@ -100,7 +102,7 @@ class DeviceUsersManager {
 
       return users;
     } catch (e) {
-      print('获取设备用户失败: $e');
+      AppLogger.error('获取设备用户失败', e);
       return [];
     }
   }
@@ -135,7 +137,7 @@ class DeviceUsersManager {
         await _saveUsers(users);
       }
     } catch (e) {
-      print('添加设备用户失败: $e');
+      AppLogger.error('从 Supabase User添加设备用户失败', e);
     }
   }
 
@@ -157,7 +159,7 @@ class DeviceUsersManager {
 
       await _saveUsers(users);
     } catch (e) {
-      print('添加设备用户失败: $e');
+      AppLogger.error('直接添加设备用户失败', e);
     }
   }
 
@@ -168,7 +170,7 @@ class DeviceUsersManager {
       users.removeWhere((user) => user.id == userId);
       await _saveUsers(users);
     } catch (e) {
-      print('移除设备用户失败: $e');
+      AppLogger.error('移除设备用户失败', e);
     }
   }
 
@@ -183,7 +185,7 @@ class DeviceUsersManager {
         await _saveUsers(users);
       }
     } catch (e) {
-      print('更新用户显示名称失败: $e');
+      AppLogger.error('更新用户显示名称失败', e);
     }
   }
 
@@ -204,7 +206,7 @@ class DeviceUsersManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_storageKey);
     } catch (e) {
-      print('清除设备用户失败: $e');
+      AppLogger.error('清除设备用户失败', e);
     }
   }
 
@@ -215,7 +217,7 @@ class DeviceUsersManager {
       final usersJson = jsonEncode(users.map((u) => u.toJson()).toList());
       await prefs.setString(_storageKey, usersJson);
     } catch (e) {
-      print('保存设备用户失败: $e');
+      AppLogger.error('保存设备用户失败', e);
     }
   }
 }

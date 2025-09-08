@@ -5,7 +5,6 @@ import '../../data/models/import_result.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/sync/sync_manager.dart';
 import 'transaction_provider.dart';
-import 'shared_investment_provider.dart';
 import 'investment_goal_provider.dart';
 
 part 'import_export_provider.g.dart';
@@ -15,7 +14,6 @@ part 'import_export_provider.g.dart';
 ImportExportService importExportService(ImportExportServiceRef ref) {
   return ImportExportService(
     transactionRepository: ref.watch(transactionRepositoryProvider),
-    sharedInvestmentRepository: ref.watch(sharedInvestmentRepositoryProvider),
     investmentGoalRepository: ref.watch(investmentGoalRepositoryProvider),
   );
 }
@@ -132,7 +130,6 @@ class ImportExportNotifier extends _$ImportExportNotifier {
 
       // 刷新所有数据
       ref.invalidate(transactionNotifierProvider);
-      ref.invalidate(sharedInvestmentNotifierProvider);
       ref.invalidate(investmentGoalNotifierProvider);
 
       // 自动触发同步
@@ -156,7 +153,6 @@ class ImportExportNotifier extends _$ImportExportNotifier {
           await syncManager.manualSync();
           // 同步完成后刷新所有相关数据
           ref.invalidate(transactionNotifierProvider);
-          ref.invalidate(sharedInvestmentNotifierProvider);
           ref.invalidate(investmentGoalNotifierProvider);
         } catch (e) {
           // 同步失败时不影响用户操作，只是静默处理

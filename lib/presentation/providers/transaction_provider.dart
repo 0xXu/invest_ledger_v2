@@ -1,8 +1,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/transaction.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../../data/datasources/local/transaction_dao.dart';
+import '../../data/services/transaction_stats_service.dart';
 import '../../core/auth/auth_service.dart';
 import '../../core/sync/sync_manager.dart';
 import 'loading_provider.dart';
@@ -127,7 +129,7 @@ Future<List<Transaction>> transactionsByStock(
 // Transactions by date range provider
 @riverpod
 Future<List<Transaction>> transactionsByDateRange(
-  TransactionsByDateRangeRef ref, {
+  Ref ref, {
   required DateTime startDate,
   required DateTime endDate,
 }) async {
@@ -140,6 +142,130 @@ Future<List<Transaction>> transactionsByDateRange(
     startDate: startDate,
     endDate: endDate,
   );
+}
+
+// Enhanced stats providers using TransactionStatsService
+@riverpod
+TransactionStatsService transactionStatsService(Ref ref) {
+  return TransactionStatsService();
+}
+
+// Comprehensive stats provider
+@riverpod
+Future<ComprehensiveStats> comprehensiveStats(Ref ref) async {
+  final transactions = await ref.watch(transactionNotifierProvider.future);
+  final service = ref.watch(transactionStatsServiceProvider);
+  return service.calculateComprehensiveStats(transactions);
+}
+
+// Filtered transactions provider
+@riverpod
+class FilteredTransactions extends _$FilteredTransactions {
+  @override
+  Future<List<Transaction>> build({
+    DateTime? startDate,
+    DateTime? endDate,
+    List<String>? stockNames,
+    ProfitLossFilter? profitLossFilter,
+  }) async {
+    final allTransactions = await ref.watch(transactionNotifierProvider.future);
+    final service = ref.watch(transactionStatsServiceProvider);
+    
+    return service.filterTransactions(
+      allTransactions,
+      startDate: startDate,
+      endDate: endDate,
+      stockNames: stockNames,
+      profitLossFilter: profitLossFilter,
+    );
+  }
+  
+  // Update filters method
+  void updateFilters({
+    DateTime? startDate,
+    DateTime? endDate,
+    List<String>? stockNames,
+    ProfitLossFilter? profitLossFilter,
+  }) {
+    // Invalidate to rebuild with new parameters
+    ref.invalidateSelf();
+  }
+}
+
+// Grouped transactions providers
+@riverpod
+Future<Map<DateTime, List<Transaction>>> groupedTransactionsByDate(
+  Ref ref,
+  List<Transaction> transactions,
+) async {
+  final service = ref.watch(transactionStatsServiceProvider);
+  return service.groupTransactionsByDate(transactions);
+}
+
+@riverpod
+Future<Map<String, List<Transaction>>> groupedTransactionsByStock(
+  Ref ref,
+  List<Transaction> transactions,
+) async {
+  final service = ref.watch(transactionStatsServiceProvider);
+  return service.groupTransactionsByStock(transactions);
+}
+
+// Daily stats provider
+@riverpod
+Future<DailyStats> dailyStats(
+  Ref ref,
+  List<Transaction> dayTransactions,
+) async {
+  final service = ref.watch(transactionStatsServiceProvider);
+  return service.calculateDailyStats(dayTransactions);
+}
+
+// Quick access providers for common time ranges
+@riverpod
+Future<List<Transaction>> todayTransactions(Ref ref) async {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final tomorrow = today.add(const Duration(days: 1));
+  
+  return ref.watch(transactionsByDateRangeProvider(
+    startDate: today,
+    endDate: tomorrow,
+  ).future);
+}
+
+@riverpod
+Future<List<Transaction>> thisWeekTransactions(Ref ref) async {
+  final now = DateTime.now();
+  final weekStart = now.subtract(Duration(days: now.weekday - 1));
+  final weekStartDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
+  final weekEnd = weekStartDate.add(const Duration(days: 7));
+  
+  return ref.watch(transactionsByDateRangeProvider(
+    startDate: weekStartDate,
+    endDate: weekEnd,
+  ).future);
+}
+
+@riverpod
+Future<List<Transaction>> thisMonthTransactions(Ref ref) async {
+  final now = DateTime.now();
+  final monthStart = DateTime(now.year, now.month, 1);
+  final nextMonth = DateTime(now.year, now.month + 1, 1);
+  
+  return ref.watch(transactionsByDateRangeProvider(
+    startDate: monthStart,
+    endDate: nextMonth,
+  ).future);
+}
+
+// Stock names provider for filter dropdowns
+@riverpod
+Future<List<String>> uniqueStockNames(Ref ref) async {
+  final transactions = await ref.watch(transactionNotifierProvider.future);
+  final stockNames = transactions.map((t) => t.stockName).toSet().toList();
+  stockNames.sort();
+  return stockNames;
 }
 
 

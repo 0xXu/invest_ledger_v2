@@ -17,7 +17,6 @@ class Transaction with _$Transaction {
     required Decimal profitLoss,      // 盈亏 (CNY)
     @Default([]) List<String> tags,
     String? notes,
-    String? sharedInvestmentId,
     required DateTime createdAt,
     DateTime? updatedAt,
     @Default(false) bool isDeleted,   // 软删除标记

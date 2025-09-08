@@ -51,7 +51,12 @@ class _StockAutocompleteFieldState extends ConsumerState<StockAutocompleteField>
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
-      _hideSuggestions();
+      // 延迟隐藏建议，给用户点击的时间
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted && !_focusNode.hasFocus) {
+          _hideSuggestions();
+        }
+      });
     }
   }
 
@@ -99,9 +104,11 @@ class _StockAutocompleteFieldState extends ConsumerState<StockAutocompleteField>
   void _hideSuggestions() {
     if (!_isShowingSuggestions) return;
 
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    _isShowingSuggestions = false;
+    if (mounted) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+      _isShowingSuggestions = false;
+    }
   }
 
   OverlayEntry _createOverlayEntry() {
@@ -127,32 +134,39 @@ class _StockAutocompleteFieldState extends ConsumerState<StockAutocompleteField>
                   color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
                 ),
               ),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: _suggestions.length,
-                itemBuilder: (context, index) {
-                  final suggestion = _suggestions[index];
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(
-                      Icons.history,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    title: Text(
-                      widget.isStockName ? suggestion.stockName : suggestion.stockCode,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    subtitle: Text(
-                      widget.isStockName ? suggestion.stockCode : suggestion.stockName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: _suggestions.length,
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    return InkWell(
+                      onTap: () {
+                        _selectSuggestion(suggestion);
+                      },
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.history,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        title: Text(
+                          widget.isStockName ? suggestion.stockName : suggestion.stockCode,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        subtitle: Text(
+                          widget.isStockName ? suggestion.stockCode : suggestion.stockName,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
-                    ),
-                    onTap: () => _selectSuggestion(suggestion),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -162,6 +176,9 @@ class _StockAutocompleteFieldState extends ConsumerState<StockAutocompleteField>
   }
 
   void _selectSuggestion(StockHistoryItem suggestion) {
+    // 立即隐藏建议
+    _hideSuggestions();
+    
     // 填充当前输入框
     widget.controller.text = widget.isStockName ? suggestion.stockName : suggestion.stockCode;
     
@@ -170,8 +187,12 @@ class _StockAutocompleteFieldState extends ConsumerState<StockAutocompleteField>
       widget.pairedController!.text = widget.isStockName ? suggestion.stockCode : suggestion.stockName;
     }
     
-    _hideSuggestions();
-    _focusNode.unfocus();
+    // 延迟失焦，确保文本输入完成
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _focusNode.unfocus();
+      }
+    });
   }
 
   @override

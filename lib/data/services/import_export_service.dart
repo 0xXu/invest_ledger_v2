@@ -7,24 +7,19 @@ import 'package:decimal/decimal.dart';
 import 'package:intl/intl.dart';
 
 import '../models/transaction.dart';
-import '../models/shared_investment.dart';
 import '../models/investment_goal.dart';
 import '../models/import_result.dart';
 import '../repositories/transaction_repository.dart';
-import '../repositories/shared_investment_repository.dart';
 import '../repositories/investment_goal_repository.dart';
 
 class ImportExportService {
   final TransactionRepository _transactionRepository;
-  final SharedInvestmentRepository _sharedInvestmentRepository;
   final InvestmentGoalRepository _investmentGoalRepository;
 
   ImportExportService({
     required TransactionRepository transactionRepository,
-    required SharedInvestmentRepository sharedInvestmentRepository,
     required InvestmentGoalRepository investmentGoalRepository,
   })  : _transactionRepository = transactionRepository,
-        _sharedInvestmentRepository = sharedInvestmentRepository,
         _investmentGoalRepository = investmentGoalRepository;
 
   /// 导出交易记录为CSV格式
@@ -551,7 +546,6 @@ class ImportExportService {
     try {
       // 获取所有数据
       final transactions = await _transactionRepository.getTransactionsByUserId(userId);
-      final sharedInvestments = await _sharedInvestmentRepository.getSharedInvestmentsByUserId(userId);
       final investmentGoals = await _investmentGoalRepository.getGoalsByUserId(userId);
 
       // 构建备份数据
@@ -560,7 +554,6 @@ class ImportExportService {
         'exportDate': DateTime.now().toIso8601String(),
         'userId': userId,
         'transactions': transactions.map((t) => t.toJson()).toList(),
-        'sharedInvestments': sharedInvestments.map((s) => s.toJson()).toList(),
         'investmentGoals': investmentGoals.map((g) => g.toJson()).toList(),
       };
 
@@ -607,7 +600,6 @@ class ImportExportService {
       final Map<String, dynamic> backupData = jsonDecode(jsonString);
 
       int transactionsImported = 0;
-      int sharedInvestmentsImported = 0;
       int investmentGoalsImported = 0;
 
       // 导入交易记录
@@ -618,21 +610,6 @@ class ImportExportService {
             final transaction = Transaction.fromJson(transactionData);
             await _transactionRepository.addTransaction(transaction);
             transactionsImported++;
-          } catch (e) {
-            // 跳过无法导入的记录
-            continue;
-          }
-        }
-      }
-
-      // 导入共享投资
-      if (backupData['sharedInvestments'] != null) {
-        final List<dynamic> sharedInvestmentsData = backupData['sharedInvestments'];
-        for (final sharedInvestmentData in sharedInvestmentsData) {
-          try {
-            final sharedInvestment = SharedInvestment.fromJson(sharedInvestmentData);
-            await _sharedInvestmentRepository.createSharedInvestment(sharedInvestment);
-            sharedInvestmentsImported++;
           } catch (e) {
             // 跳过无法导入的记录
             continue;
@@ -657,7 +634,6 @@ class ImportExportService {
 
       return {
         'transactions': transactionsImported,
-        'sharedInvestments': sharedInvestmentsImported,
         'investmentGoals': investmentGoalsImported,
       };
     } catch (e) {
@@ -683,7 +659,6 @@ class ImportExportService {
 
       // 获取所有数据
       final transactions = await _transactionRepository.getTransactionsByUserId(userId);
-      final sharedInvestments = await _sharedInvestmentRepository.getSharedInvestmentsByUserId(userId);
       final investmentGoals = await _investmentGoalRepository.getGoalsByUserId(userId);
 
       // 构建备份数据
@@ -692,7 +667,6 @@ class ImportExportService {
         'exportDate': DateTime.now().toIso8601String(),
         'userId': userId,
         'transactions': transactions.map((t) => t.toJson()).toList(),
-        'sharedInvestments': sharedInvestments.map((s) => s.toJson()).toList(),
         'investmentGoals': investmentGoals.map((g) => g.toJson()).toList(),
       };
 

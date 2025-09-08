@@ -29,7 +29,6 @@ class TransactionDao {
       'profit_loss': transactionWithId.profitLoss.toString(),
       'tags': jsonEncode(transactionWithId.tags),
       'notes': transactionWithId.notes,
-      'shared_investment_id': transactionWithId.sharedInvestmentId,
       'created_at': transactionWithId.createdAt.toIso8601String(),
       'updated_at': transactionWithId.updatedAt?.toIso8601String(),
       'is_deleted': transactionWithId.isDeleted ? 1 : 0,
@@ -133,7 +132,6 @@ class TransactionDao {
         'profit_loss': transaction.profitLoss.toString(),
         'tags': jsonEncode(transaction.tags),
         'notes': transaction.notes,
-        'shared_investment_id': transaction.sharedInvestmentId,
         'updated_at': DateTime.now().toIso8601String(),
         'is_deleted': transaction.isDeleted ? 1 : 0,
       },
@@ -167,7 +165,6 @@ class TransactionDao {
       profitLoss: Decimal.parse(_safeToString(map['profit_loss'])),
       tags: List<String>.from(jsonDecode(map['tags'] ?? '[]')),
       notes: map['notes'],
-      sharedInvestmentId: map['shared_investment_id'],
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'])

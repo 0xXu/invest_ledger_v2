@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/supabase_config.dart';
+import '../auth/auth_service.dart';
+import '../auth/auth_state.dart';
 import '../../data/datasources/local/transaction_dao.dart';
 import '../../data/datasources/local/investment_goal_dao.dart';
 import '../../data/datasources/remote/supabase_transaction_dao.dart';
@@ -21,12 +23,16 @@ class SyncManager {
   final SupabaseTransactionDao _remoteTransactionDao;
   final SupabaseInvestmentGoalDao _remoteGoalDao;
   final ConnectivityService _connectivityService;
+  final Ref _ref; // 添加Ref用于监听认证状态
 
   late StreamController<SyncStatus> _syncStatusController;
   SyncStatus _currentStatus = const SyncStatus();
 
   // 同步完成回调列表
   final List<SyncCompletedCallback> _syncCompletedCallbacks = [];
+  
+  // 认证状态监听
+  ProviderSubscription? _authSubscription;
 
   SyncManager({
     required TransactionDao localTransactionDao,
@@ -34,11 +40,13 @@ class SyncManager {
     required SupabaseTransactionDao remoteTransactionDao,
     required SupabaseInvestmentGoalDao remoteGoalDao,
     required ConnectivityService connectivityService,
+    required Ref ref, // 添加Ref参数
   }) : _localTransactionDao = localTransactionDao,
        _localGoalDao = localGoalDao,
        _remoteTransactionDao = remoteTransactionDao,
        _remoteGoalDao = remoteGoalDao,
-       _connectivityService = connectivityService {
+       _connectivityService = connectivityService,
+       _ref = ref {
     _syncStatusController = StreamController<SyncStatus>.broadcast();
     _initSync();
   }
@@ -65,6 +73,24 @@ class SyncManager {
         _autoSync();
       }
     });
+
+    // 监听认证状态变化
+    _authSubscription = _ref.listen<AppAuthState>(
+      authServiceProvider,
+      (previous, next) {
+        // 当用户从未认证状态变为已认证状态时，触发初始同步
+        if (previous?.status != AuthStatus.authenticated && 
+            next.status == AuthStatus.authenticated &&
+            _connectivityService.isConnected) {
+          // 延迟一点时间让认证流程完全完成
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (SupabaseConfig.isLoggedIn) {
+              _autoSync();
+            }
+          });
+        }
+      },
+    );
   }
   
   // 手动同步
@@ -304,6 +330,7 @@ class SyncManager {
   }
 
   void dispose() {
+    _authSubscription?.close();
     _syncStatusController.close();
   }
 }
@@ -322,6 +349,7 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     remoteTransactionDao: remoteDao,
     remoteGoalDao: remoteGoalDao,
     connectivityService: connectivity,
+    ref: ref, // 传入ref参数
   );
 
   ref.onDispose(() => manager.dispose());

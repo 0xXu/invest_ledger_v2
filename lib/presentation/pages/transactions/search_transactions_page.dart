@@ -20,7 +20,6 @@ class _SearchTransactionsPageState extends ConsumerState<SearchTransactionsPage>
   String _searchQuery = '';
   DateTime? _startDate;
   DateTime? _endDate;
-  String? _selectedTag;
   bool _showProfitOnly = false;
   bool _showLossOnly = false;
 
@@ -54,7 +53,7 @@ class _SearchTransactionsPageState extends ConsumerState<SearchTransactionsPage>
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               border: Border(
                 bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
                 ),
               ),
             ),
@@ -64,7 +63,7 @@ class _SearchTransactionsPageState extends ConsumerState<SearchTransactionsPage>
                 TextField(
                   controller: _searchController,
                   decoration: const InputDecoration(
-                    hintText: '搜索股票代码或名称...',
+                    hintText: '搜索股票名称...',
                     prefixIcon: Icon(LucideIcons.search),
                   ),
                   onChanged: (value) {
@@ -266,7 +265,6 @@ class _SearchTransactionsPageState extends ConsumerState<SearchTransactionsPage>
       _searchQuery = '';
       _startDate = null;
       _endDate = null;
-      _selectedTag = null;
       _showProfitOnly = false;
       _showLossOnly = false;
     });

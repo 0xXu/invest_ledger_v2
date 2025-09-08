@@ -47,32 +47,17 @@ class _DesktopLayout extends ConsumerWidget {
               NavigationRailDestination(
                 icon: Icon(LucideIcons.layoutDashboard),
                 selectedIcon: Icon(LucideIcons.layoutDashboard),
-                label: Text('概览'),
+                label: Text('首页'),
               ),
               NavigationRailDestination(
                 icon: Icon(LucideIcons.receipt),
                 selectedIcon: Icon(LucideIcons.receipt),
-                label: Text('交易'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(LucideIcons.users),
-                selectedIcon: Icon(LucideIcons.users),
-                label: Text('共享投资'),
+                label: Text('记录'),
               ),
               NavigationRailDestination(
                 icon: Icon(LucideIcons.barChart3),
                 selectedIcon: Icon(LucideIcons.barChart3),
                 label: Text('分析'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(LucideIcons.bot),
-                selectedIcon: Icon(LucideIcons.bot),
-                label: Text('AI助手'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(LucideIcons.settings),
-                selectedIcon: Icon(LucideIcons.settings),
-                label: Text('设置'),
               ),
             ],
           ),
@@ -92,14 +77,12 @@ class _DesktopLayout extends ConsumerWidget {
       newIndex = 0;
     } else if (location.startsWith('/transactions')) {
       newIndex = 1;
-    } else if (location.startsWith('/shared-investment')) {
-      newIndex = 2;
     } else if (location.startsWith('/analytics')) {
-      newIndex = 3;
-    } else if (location.startsWith('/ai-assistant')) {
-      newIndex = 4;
-    } else if (location.startsWith('/settings')) {
-      newIndex = 5;
+      newIndex = 2;
+    } else if (location.startsWith('/settings') || 
+               location.startsWith('/import-export')) {
+      // 这些页面通过设置菜单或其他方式访问，暂时映射到首页
+      newIndex = 0;
     }
 
     // 只有当索引不同时才更新，避免无限循环和不必要的重建
@@ -123,16 +106,7 @@ class _DesktopLayout extends ConsumerWidget {
         context.go('/transactions');
         break;
       case 2:
-        context.go('/shared-investment');
-        break;
-      case 3:
         context.go('/analytics');
-        break;
-      case 4:
-        context.go('/ai-assistant');
-        break;
-      case 5:
-        context.go('/settings');
         break;
     }
   }
@@ -162,32 +136,17 @@ class _MobileLayout extends ConsumerWidget {
           NavigationDestination(
             icon: Icon(LucideIcons.layoutDashboard),
             selectedIcon: Icon(LucideIcons.layoutDashboard),
-            label: '概览',
+            label: '首页',
           ),
           NavigationDestination(
             icon: Icon(LucideIcons.receipt),
             selectedIcon: Icon(LucideIcons.receipt),
-            label: '交易',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.users),
-            selectedIcon: Icon(LucideIcons.users),
-            label: '共享投资',
+            label: '记录',
           ),
           NavigationDestination(
             icon: Icon(LucideIcons.barChart3),
             selectedIcon: Icon(LucideIcons.barChart3),
             label: '分析',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.bot),
-            selectedIcon: Icon(LucideIcons.bot),
-            label: 'AI助手',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.settings),
-            selectedIcon: Icon(LucideIcons.settings),
-            label: '设置',
           ),
         ],
       ),
@@ -202,14 +161,12 @@ class _MobileLayout extends ConsumerWidget {
       newIndex = 0;
     } else if (location.startsWith('/transactions')) {
       newIndex = 1;
-    } else if (location.startsWith('/shared-investment')) {
-      newIndex = 2;
     } else if (location.startsWith('/analytics')) {
-      newIndex = 3;
-    } else if (location.startsWith('/ai-assistant')) {
-      newIndex = 4;
-    } else if (location.startsWith('/settings')) {
-      newIndex = 5;
+      newIndex = 2;
+    } else if (location.startsWith('/settings') || 
+               location.startsWith('/import-export')) {
+      // 这些页面通过设置菜单或其他方式访问，暂时映射到首页
+      newIndex = 0;
     }
 
     // 只有当索引不同时才更新，避免无限循环和不必要的重建
@@ -233,16 +190,7 @@ class _MobileLayout extends ConsumerWidget {
         context.go('/transactions');
         break;
       case 2:
-        context.go('/shared-investment');
-        break;
-      case 3:
         context.go('/analytics');
-        break;
-      case 4:
-        context.go('/ai-assistant');
-        break;
-      case 5:
-        context.go('/settings');
         break;
     }
   }
