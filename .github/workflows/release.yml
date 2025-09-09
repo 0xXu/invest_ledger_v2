@@ -76,16 +76,6 @@ jobs:
           ls -la android/upload-keystore.jks
           echo "✅ 签名文件创建成功"
 
-      - name: 生成 Gradle Wrapper
-        run: |
-          cd android
-          # 使用系统gradle生成wrapper
-          gradle wrapper --gradle-version=8.12 --distribution-type=all
-          # 验证wrapper文件
-          ls -la gradlew gradlew.bat
-          chmod +x gradlew
-          echo "✅ Gradle wrapper 生成完成"
-
       - name: 构建 APK
         run: |
           # 获取版本号
@@ -114,7 +104,12 @@ jobs:
           # 使用Gradle直接构建APK（绕过Flutter的文件查找问题）
           echo "🚀 开始构建APK..."
           
+          # 验证Gradle wrapper版本
+          cd android
+          ./gradlew --version
+          
           # 首先运行Flutter预构建步骤来生成必要的文件
+          cd ..
           flutter build apk --release --build-name=$VERSION_NAME --build-number=$BUILD_NUMBER --no-gradle || echo "Flutter预构建完成（忽略错误）"
           
           # 然后使用Gradle直接构建
