@@ -73,7 +73,7 @@ jobs:
       - name: 生成 Gradle Wrapper
         run: |
           cd android
-          gradle wrapper
+          ./gradlew wrapper --gradle-version=8.12
 
       - name: 设置版本号
         run: |
