@@ -7,27 +7,18 @@ import '../../data/models/transaction.dart';
 import '../../data/services/transaction_stats_service.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/color_theme_provider.dart';
-import 'stock_investment_card.dart';
 import 'profit_loss_record_card.dart';
 import 'animated_card.dart';
 import '../utils/loading_utils.dart';
 
-/// 记录显示模式
-enum RecordDisplayMode {
-  profitLoss, // 盈亏记录
-  detailed,   // 详细交易记录
-}
-
-/// 分组交易记录列表 - 按日期分组显示
+/// 分组交易记录列表 - 按日期分组显示（盈亏记录模式）
 class GroupedTransactionsList extends ConsumerStatefulWidget {
   final List<Transaction> transactions;
-  final RecordDisplayMode displayMode;
   final VoidCallback? onRefresh;
 
   const GroupedTransactionsList({
     super.key,
     required this.transactions,
-    required this.displayMode,
     this.onRefresh,
   });
 
@@ -68,6 +59,10 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
       if (date.isAtSameMomentAs(today) || date.isAtSameMomentAs(yesterday)) {
         _expandedStates[date] = true;
         _animationControllers[date]!.value = 1.0;
+      } else {
+        // 明确设置其他日期为收起状态
+        _expandedStates[date] = false;
+        _animationControllers[date]!.value = 0.0;
       }
     }
     return _animationControllers[date]!;
@@ -121,31 +116,23 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
           final date = entry.key;
           final dayTransactions = entry.value;
           
-          return AnimatedCard.fadeSlideIn(
-            delay: Duration(milliseconds: index * 50),
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutCubic,
-            enableAnimation: index < 10, // 只为前10个启用动画，优化性能
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _DateGroupCard(
-                date: date,
-                transactions: dayTransactions,
-                displayMode: widget.displayMode,
-                isExpanded: _expandedStates[date] ?? false,
-                animationController: _getAnimationController(date),
-                onToggleExpanded: () => _toggleExpanded(date),
-                onTransactionTap: (transaction) {
-                  context.push('/transactions/${transaction.id}');
-                },
-                onTransactionEdit: (transaction) {
-                  final mode = widget.displayMode == RecordDisplayMode.profitLoss ? 'simple' : 'detailed';
-                  context.push('/transactions/edit/${transaction.id}?mode=$mode');
-                },
-                onTransactionDelete: (transaction) {
-                  _showDeleteDialog(context, transaction);
-                },
-              ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _DateGroupCard(
+              date: date,
+              transactions: dayTransactions,
+              isExpanded: _expandedStates[date] ?? false,
+              animationController: _getAnimationController(date),
+              onToggleExpanded: () => _toggleExpanded(date),
+              onTransactionTap: (transaction) {
+                context.push('/transactions/${transaction.id}');
+              },
+              onTransactionEdit: (transaction) {
+                context.push('/transactions/edit/${transaction.id}?mode=simple');
+              },
+              onTransactionDelete: (transaction) {
+                _showDeleteDialog(context, transaction);
+              },
             ),
           );
         },
@@ -159,26 +146,20 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            widget.displayMode == RecordDisplayMode.profitLoss
-                ? LucideIcons.trendingUp
-                : LucideIcons.receipt,
+            LucideIcons.trendingUp,
             size: 64,
             color: Colors.grey[400],
           ),
           const SizedBox(height: 16),
           Text(
-            widget.displayMode == RecordDisplayMode.profitLoss
-                ? '暂无盈亏记录'
-                : '暂无交易记录',
+            '暂无盈亏记录',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            widget.displayMode == RecordDisplayMode.profitLoss
-                ? '点击右下角的 + 按钮快速记录盈亏'
-                : '点击右下角的 + 按钮添加详细交易',
+            '点击右下角的 + 按钮快速记录盈亏',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Colors.grey[500],
             ),
@@ -229,11 +210,9 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(widget.displayMode == RecordDisplayMode.profitLoss ? '删除盈亏记录' : '删除交易记录'),
+        title: const Text('删除盈亏记录'),
         content: Text(
-          widget.displayMode == RecordDisplayMode.profitLoss
-              ? '确定要删除这条盈亏记录吗？此操作无法撤销。\n\n${transaction.stockName}'
-              : '确定要删除这笔交易吗？此操作无法撤销。\n\n${transaction.stockName}'
+          '确定要删除这条盈亏记录吗？此操作无法撤销。\n\n${transaction.stockName}'
         ),
         actions: [
           TextButton(
@@ -248,16 +227,12 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
                 await ref.withLoading(() async {
                   await ref.read(transactionNotifierProvider.notifier)
                       .deleteTransaction(transaction.id!);
-                }, widget.displayMode == RecordDisplayMode.profitLoss
-                    ? '正在删除盈亏记录...'
-                    : '正在删除交易记录...');
+                }, '正在删除盈亏记录...');
 
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(widget.displayMode == RecordDisplayMode.profitLoss
-                          ? '盈亏记录已删除'
-                          : '交易记录已删除'),
+                      content: const Text('盈亏记录已删除'),
                     ),
                   );
                 }
@@ -285,7 +260,6 @@ class _GroupedTransactionsListState extends ConsumerState<GroupedTransactionsLis
 class _DateGroupCard extends ConsumerWidget {
   final DateTime date;
   final List<Transaction> transactions;
-  final RecordDisplayMode displayMode;
   final bool isExpanded;
   final AnimationController animationController;
   final VoidCallback onToggleExpanded;
@@ -296,7 +270,6 @@ class _DateGroupCard extends ConsumerWidget {
   const _DateGroupCard({
     required this.date,
     required this.transactions,
-    required this.displayMode,
     required this.isExpanded,
     required this.animationController,
     required this.onToggleExpanded,
@@ -490,19 +463,12 @@ class _DateGroupCard extends ConsumerWidget {
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final transaction = transactions[index];
-            return displayMode == RecordDisplayMode.profitLoss
-                ? ProfitLossRecordCard(
-                    transaction: transaction,
-                    onTap: () => onTransactionTap(transaction),
-                    onEdit: () => onTransactionEdit(transaction),
-                    onDelete: () => onTransactionDelete(transaction),
-                  )
-                : StockInvestmentCard(
-                    transaction: transaction,
-                    onTap: () => onTransactionTap(transaction),
-                    onEdit: () => onTransactionEdit(transaction),
-                    onDelete: () => onTransactionDelete(transaction),
-                  );
+            return ProfitLossRecordCard(
+              transaction: transaction,
+              onTap: () => onTransactionTap(transaction),
+              onEdit: () => onTransactionEdit(transaction),
+              onDelete: () => onTransactionDelete(transaction),
+            );
           },
         ),
       ],
@@ -562,7 +528,14 @@ class _DateGroupCard extends ConsumerWidget {
     } else if (date.isAtSameMomentAs(yesterday)) {
       return '昨日 ${date.month}月${date.day}日';
     } else {
-      return '${date.month}月${date.day}日 周${_getWeekdayName(date.weekday)}';
+      // 判断是否为本年
+      if (date.year == now.year) {
+        // 本年：只显示月日和星期
+        return '${date.month}月${date.day}日 周${_getWeekdayName(date.weekday)}';
+      } else {
+        // 非本年：显示年月日和星期
+        return '${date.year}年${date.month}月${date.day}日 周${_getWeekdayName(date.weekday)}';
+      }
     }
   }
 

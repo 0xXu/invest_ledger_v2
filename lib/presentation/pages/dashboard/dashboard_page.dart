@@ -19,6 +19,7 @@ import '../../widgets/refresh_button.dart';
 import '../../widgets/profit_loss_text.dart';
 import '../../widgets/sync_status_widget.dart';
 import '../../widgets/charts/profit_loss_chart.dart';
+import '../../widgets/goal_progress_card.dart';
 
 // For the ChartData class
 class ChartData {
@@ -525,13 +526,13 @@ class _CoreMetricsGrid extends ConsumerWidget {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _MetricCard(
+                child: GoalProgressCard(
                   title: '本月收益',
-                  value: '¥${monthlyStats.toStringAsFixed(0)}',
+                  currentValue: monthlyStats,
                   subtitle: DateFormat('MM月').format(now),
                   icon: LucideIcons.calendar,
                   color: colors.getColorByValue(monthlyStats),
-                  trend: monthlyStats >= 0 ? '本月盈利' : '本月亏损',
+                  isMonthly: true,
                 ),
               ),
             ],
@@ -540,13 +541,13 @@ class _CoreMetricsGrid extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _MetricCard(
+                child: GoalProgressCard(
                   title: '本年收益',
-                  value: '¥${yearlyStats.toStringAsFixed(0)}',
+                  currentValue: yearlyStats,
                   subtitle: '${now.year}年累计',
                   icon: LucideIcons.calendarDays,
                   color: colors.getColorByValue(yearlyStats),
-                  trend: yearlyStats >= 0 ? '年度盈利' : '年度亏损',
+                  isMonthly: false,
                 ),
               ),
               const SizedBox(width: 16),

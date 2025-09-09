@@ -49,114 +49,275 @@ class StockDistributionChart extends StatelessWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final titleFontSize = isMobile ? 16.0 : null;
+        final pieRadius = isMobile ? 60.0 : 80.0;
+        final centerSpaceRadius = isMobile ? 30.0 : 40.0;
+        final titleStyleFontSize = isMobile ? 10.0 : 12.0;
+        final legendFontSize = isMobile ? 11.0 : 12.0;
+        final legendSpacing = isMobile ? 6.0 : 8.0;
+
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(isMobile ? 12 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: titleFontSize,
+                  ),
+                ),
+                SizedBox(height: isMobile ? 12 : 16),
+                Expanded(
+                  child: isMobile ? _buildMobileLayout(
+                    chartData, 
+                    theme, 
+                    pieRadius, 
+                    centerSpaceRadius, 
+                    titleStyleFontSize, 
+                    legendFontSize, 
+                    legendSpacing
+                  ) : _buildDesktopLayout(
+                    chartData, 
+                    theme, 
+                    pieRadius, 
+                    centerSpaceRadius, 
+                    titleStyleFontSize, 
+                    legendFontSize, 
+                    legendSpacing
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileLayout(
+    List<ChartData> chartData,
+    ThemeData theme,
+    double pieRadius,
+    double centerSpaceRadius,
+    double titleStyleFontSize,
+    double legendFontSize,
+    double legendSpacing,
+  ) {
+    return Column(
+      children: [
+        // 饼图在上方
+        Expanded(
+          flex: 2,
+          child: PieChart(
+            PieChartData(
+              sections: chartData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final data = entry.value;
+                final color = _getColor(index);
+                
+                return PieChartSectionData(
+                  color: color,
+                  value: data.value,
+                  title: '${data.percentage.toStringAsFixed(1)}%',
+                  radius: pieRadius,
+                  titleStyle: TextStyle(
+                    fontSize: titleStyleFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                );
+              }).toList(),
+              sectionsSpace: 2,
+              centerSpaceRadius: centerSpaceRadius,
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  // Handle touch events if needed
+                },
               ),
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Row(
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // 图例在下方，使用网格布局
+        Expanded(
+          flex: 1,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 4,
+            ),
+            itemCount: chartData.length,
+            itemBuilder: (context, index) {
+              final data = chartData[index];
+              final color = _getColor(index);
+              
+              return Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 饼图
-                  Expanded(
-                    flex: 2,
-                    child: PieChart(
-                      PieChartData(
-                        sections: chartData.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final data = entry.value;
-                          final color = _getColor(index);
-                          
-                          return PieChartSectionData(
-                            color: color,
-                            value: data.value,
-                            title: '${data.percentage.toStringAsFixed(1)}%',
-                            radius: 80,
-                            titleStyle: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          );
-                        }).toList(),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
-                        pieTouchData: PieTouchData(
-                          touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                            // Handle touch events if needed
-                          },
-                        ),
-                      ),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  
-                  // 图例
+                  const SizedBox(width: 4),
                   Expanded(
-                    flex: 1,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: chartData.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final data = entry.value;
-                          final color = _getColor(index);
-                          
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        data.label,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        '¥${data.value.toStringAsFixed(0)}',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          data.label,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        Text(
+                          '¥${_formatValue(data.value)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 9,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    List<ChartData> chartData,
+    ThemeData theme,
+    double pieRadius,
+    double centerSpaceRadius,
+    double titleStyleFontSize,
+    double legendFontSize,
+    double legendSpacing,
+  ) {
+    return Row(
+      children: [
+        // 饼图
+        Expanded(
+          flex: 2,
+          child: PieChart(
+            PieChartData(
+              sections: chartData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final data = entry.value;
+                final color = _getColor(index);
+                
+                return PieChartSectionData(
+                  color: color,
+                  value: data.value,
+                  title: '${data.percentage.toStringAsFixed(1)}%',
+                  radius: pieRadius,
+                  titleStyle: TextStyle(
+                    fontSize: titleStyleFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                );
+              }).toList(),
+              sectionsSpace: 2,
+              centerSpaceRadius: centerSpaceRadius,
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  // Handle touch events if needed
+                },
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(width: 16),
+        
+        // 图例
+        Expanded(
+          flex: 1,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: chartData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final data = entry.value;
+                final color = _getColor(index);
+                
+                return Padding(
+                  padding: EdgeInsets.only(bottom: legendSpacing),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.label,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: legendFontSize,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '¥${data.value.toStringAsFixed(0)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: legendFontSize - 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
     );
+  }
+
+  String _formatValue(double value) {
+    if (value >= 10000) {
+      return '${(value / 10000).toStringAsFixed(1)}万';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}k';
+    } else {
+      return value.toStringAsFixed(0);
+    }
   }
 
   List<ChartData> _prepareChartData() {

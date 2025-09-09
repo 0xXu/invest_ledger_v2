@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/models/transaction.dart';
 import '../../providers/transaction_provider.dart';
-import '../../widgets/stock_investment_card.dart';
+import '../../widgets/profit_loss_record_card.dart';
 
 class SearchTransactionsPage extends ConsumerStatefulWidget {
   const SearchTransactionsPage({super.key});
@@ -163,13 +163,16 @@ class _SearchTransactionsPageState extends ConsumerState<SearchTransactionsPage>
                     final transaction = filteredTransactions[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: StockInvestmentCard(
+                      child: ProfitLossRecordCard(
                         transaction: transaction,
                         onTap: () {
                           context.push('/transactions/${transaction.id}');
                         },
                         onEdit: () {
-                          context.push('/transactions/edit/${transaction.id}');
+                          context.push('/transactions/edit/${transaction.id}?mode=simple');
+                        },
+                        onDelete: () {
+                          // Handle delete if needed
                         },
                       ),
                     );

@@ -73,107 +73,127 @@ class ProfitLossChart extends ConsumerWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title.isNotEmpty) ...[ 
-              Text(
-                title,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Expanded(
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: _getMaxY(),
-                  minY: _getMinY(),
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final data = chartData[groupIndex];
-                        return BarTooltipItem(
-                          '${data.label}\n¥${data.value.toStringAsFixed(2)}',
-                          TextStyle(
-                            color: theme.colorScheme.onInverseSurface,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final titleFontSize = isMobile ? 16.0 : null;
+        final labelFontSize = isMobile ? 9.0 : 12.0;
+        final reservedSizeLeft = isMobile ? 45.0 : 60.0;
+        final reservedSizeBottom = isMobile ? 30.0 : 40.0;
+        final barWidth = isMobile ? 15.0 : 20.0;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title.isNotEmpty) ...[ 
+                  Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: titleFontSize,
                     ),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index >= 0 && index < chartData.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                chartData[index].label,
-                                style: theme.textTheme.bodySmall,
+                  const SizedBox(height: 12),
+                ],
+                Expanded(
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: _getMaxY(),
+                      minY: _getMinY(),
+                      barTouchData: BarTouchData(
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final data = chartData[groupIndex];
+                            return BarTooltipItem(
+                              '${data.label}\n¥${data.value.toStringAsFixed(2)}',
+                              TextStyle(
+                                color: theme.colorScheme.onInverseSurface,
+                                fontWeight: FontWeight.bold,
+                                fontSize: isMobile ? 11 : 12,
                               ),
                             );
-                          }
-                          return const Text('');
-                        },
+                          },
+                        ),
                       ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 60,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            '¥${_formatNumber(value)}',
-                            style: theme.textTheme.bodySmall,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: chartData.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final data = entry.value;
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: data.value,
-                          color: data.value >= 0
-                              ? colors.getProfitColor()
-                              : colors.getLossColor(),
-                          width: 20,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: reservedSizeBottom,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index >= 0 && index < chartData.length) {
+                                return Padding(
+                                  padding: EdgeInsets.only(top: isMobile ? 4 : 8),
+                                  child: Text(
+                                    chartData[index].label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontSize: labelFontSize,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                );
+                              }
+                              return const Text('');
+                            },
                           ),
                         ),
-                      ],
-                    );
-                  }).toList(),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: reservedSizeLeft,
+                            getTitlesWidget: (value, meta) {
+                              return Text(
+                                '¥${_formatNumber(value)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontSize: labelFontSize,
+                                ),
+                                textAlign: TextAlign.right,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      barGroups: chartData.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final data = entry.value;
+                        return BarChartGroupData(
+                          x: index,
+                          barRods: [
+                            BarChartRodData(
+                              toY: data.value,
+                              color: data.value >= 0
+                                  ? colors.getProfitColor()
+                                  : colors.getLossColor(),
+                              width: barWidth,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(4),
+                                topRight: Radius.circular(4),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

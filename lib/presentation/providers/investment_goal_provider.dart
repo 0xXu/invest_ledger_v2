@@ -1,4 +1,5 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../data/models/investment_goal.dart';
 import '../../data/repositories/investment_goal_repository.dart';
@@ -45,11 +46,17 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
     final authState = ref.read(authServiceProvider);
     if (authState.user == null) return;
 
+    debugPrint('🎯 InvestmentGoalProvider.setGoal called:');
+    debugPrint('   period: ${period.name}');
+    debugPrint('   targetAmount: $targetAmount');
+    debugPrint('   autoCalculateCounterpart: $autoCalculateCounterpart');
+
     final loading = ref.read(globalLoadingProvider.notifier);
     await loading.wrap(() async {
       final repository = ref.read(investmentGoalRepositoryProvider);
 
       // 保存当前目标
+      debugPrint('📝 保存主要目标...');
       await repository.setOrUpdateGoal(
         userId: authState.user!.id,
         type: type,
@@ -62,57 +69,44 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
 
       // 自动计算并设置对应的目标
       if (autoCalculateCounterpart) {
+        debugPrint('🔄 自动计算对应目标...');
         if (period == GoalPeriod.monthly) {
           // 设置月度目标时，自动计算年度目标
           final yearlyTarget = targetAmount * 12;
+          debugPrint('📅 设置年度目标: ¥$yearlyTarget');
 
-          // 检查是否已有年度目标
-          final existingYearlyGoal = await repository.getCurrentGoal(
+          // 总是设置或更新年度目标（不管是否已存在）
+          await repository.setOrUpdateGoal(
             userId: authState.user!.id,
             type: type,
             period: GoalPeriod.yearly,
             year: year,
+            month: null,
+            targetAmount: yearlyTarget,
+            description: description != null ? '基于月度目标自动计算: $description' : '基于月度目标自动计算',
           );
-
-          if (existingYearlyGoal == null) {
-            await repository.setOrUpdateGoal(
-              userId: authState.user!.id,
-              type: type,
-              period: GoalPeriod.yearly,
-              year: year,
-              month: null,
-              targetAmount: yearlyTarget,
-              description: description != null ? '基于月度目标自动计算: $description' : '基于月度目标自动计算',
-            );
-          }
         } else if (period == GoalPeriod.yearly) {
           // 设置年度目标时，自动计算月度目标
           final monthlyTarget = targetAmount / 12;
-
-          // 检查是否已有当前月度目标
           final now = DateTime.now();
-          final existingMonthlyGoal = await repository.getCurrentGoal(
+          debugPrint('📅 设置月度目标: ¥$monthlyTarget (${now.month}月)');
+
+          // 总是设置或更新当前月度目标（不管是否已存在）
+          await repository.setOrUpdateGoal(
             userId: authState.user!.id,
             type: type,
             period: GoalPeriod.monthly,
             year: year,
             month: now.month,
+            targetAmount: monthlyTarget,
+            description: description != null ? '基于年度目标自动计算: $description' : '基于年度目标自动计算',
           );
-
-          if (existingMonthlyGoal == null) {
-            await repository.setOrUpdateGoal(
-              userId: authState.user!.id,
-              type: type,
-              period: GoalPeriod.monthly,
-              year: year,
-              month: now.month,
-              targetAmount: monthlyTarget,
-              description: description != null ? '基于年度目标自动计算: $description' : '基于年度目标自动计算',
-            );
-          }
         }
+      } else {
+        debugPrint('⏩ 跳过自动计算对应目标');
       }
 
+      debugPrint('🔄 刷新相关providers...');
       // 刷新所有相关的provider
       ref.invalidateSelf();
       ref.invalidate(currentMonthlyGoalProvider);
@@ -122,6 +116,7 @@ class InvestmentGoalNotifier extends _$InvestmentGoalNotifier {
 
       // 自动触发同步
       _triggerAutoSync();
+      debugPrint('✅ 目标设置完成');
     }, '正在保存目标...');
   }
 

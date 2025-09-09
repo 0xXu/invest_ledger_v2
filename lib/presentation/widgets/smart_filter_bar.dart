@@ -8,9 +8,10 @@ import '../providers/transaction_provider.dart';
 /// 时间范围选项
 enum TimeRange {
   all('全部', LucideIcons.calendar),
-  today('今日', LucideIcons.clock),
   thisWeek('本周', LucideIcons.calendarDays),
-  thisMonth('本月', LucideIcons.calendar);
+  thisMonth('本月', LucideIcons.calendar),
+  thisYear('本年', LucideIcons.calendarRange),
+  custom('自定义', LucideIcons.calendarSearch);
 
   const TimeRange(this.label, this.icon);
   final String label;
@@ -35,12 +36,16 @@ class FilterState {
   final ProfitLossFilter profitLossFilter;
   final List<String> selectedStocks;
   final SortOption sortOption;
+  final DateTime? customStartDate;
+  final DateTime? customEndDate;
 
   const FilterState({
     this.timeRange = TimeRange.all,
     this.profitLossFilter = ProfitLossFilter.all,
     this.selectedStocks = const [],
     this.sortOption = SortOption.dateDesc,
+    this.customStartDate,
+    this.customEndDate,
   });
 
   FilterState copyWith({
@@ -48,12 +53,17 @@ class FilterState {
     ProfitLossFilter? profitLossFilter,
     List<String>? selectedStocks,
     SortOption? sortOption,
+    DateTime? customStartDate,
+    DateTime? customEndDate,
+    bool clearCustomDates = false,
   }) {
     return FilterState(
       timeRange: timeRange ?? this.timeRange,
       profitLossFilter: profitLossFilter ?? this.profitLossFilter,
       selectedStocks: selectedStocks ?? this.selectedStocks,
       sortOption: sortOption ?? this.sortOption,
+      customStartDate: clearCustomDates ? null : (customStartDate ?? this.customStartDate),
+      customEndDate: clearCustomDates ? null : (customEndDate ?? this.customEndDate),
     );
   }
 
@@ -61,7 +71,9 @@ class FilterState {
     return timeRange != TimeRange.all ||
            profitLossFilter != ProfitLossFilter.all ||
            selectedStocks.isNotEmpty ||
-           sortOption != SortOption.dateDesc;
+           sortOption != SortOption.dateDesc ||
+           customStartDate != null ||
+           customEndDate != null;
   }
 }
 
@@ -102,10 +114,21 @@ class SmartFilterBar extends ConsumerWidget {
             children: [
               Expanded(
                 child: _TimeRangeSelector(
-                  selected: filterState.timeRange,
+                  filterState: filterState,
                   onChanged: (timeRange) {
                     ref.read(filterStateProvider.notifier).update(
-                      (state) => state.copyWith(timeRange: timeRange),
+                      (state) => state.copyWith(
+                        timeRange: timeRange,
+                        clearCustomDates: timeRange != TimeRange.custom,
+                      ),
+                    );
+                  },
+                  onCustomDatesChanged: (startDate, endDate) {
+                    ref.read(filterStateProvider.notifier).update(
+                      (state) => state.copyWith(
+                        customStartDate: startDate,
+                        customEndDate: endDate,
+                      ),
                     );
                   },
                 ),
@@ -165,30 +188,32 @@ class SmartFilterBar extends ConsumerWidget {
 }
 
 /// 时间范围选择器
-class _TimeRangeSelector extends StatelessWidget {
-  final TimeRange selected;
+class _TimeRangeSelector extends ConsumerWidget {
+  final FilterState filterState;
   final ValueChanged<TimeRange> onChanged;
+  final Function(DateTime?, DateTime?) onCustomDatesChanged;
 
   const _TimeRangeSelector({
-    required this.selected,
+    required this.filterState,
     required this.onChanged,
+    required this.onCustomDatesChanged,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: TimeRange.values.map((timeRange) {
-          final isSelected = timeRange == selected;
+          final isSelected = timeRange == filterState.timeRange;
           
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
               selected: isSelected,
-              onSelected: (_) => onChanged(timeRange),
+              onSelected: (_) => _handleSelection(context, timeRange),
               avatar: Icon(
                 timeRange.icon,
                 size: 16,
@@ -197,7 +222,7 @@ class _TimeRangeSelector extends StatelessWidget {
                   : theme.colorScheme.onSurfaceVariant,
               ),
               label: Text(
-                timeRange.label,
+                _getDisplayLabel(timeRange),
                 style: TextStyle(
                   color: isSelected 
                     ? theme.colorScheme.onSecondaryContainer
@@ -214,6 +239,53 @@ class _TimeRangeSelector extends StatelessWidget {
         }).toList(),
       ),
     );
+  }
+
+  String _getDisplayLabel(TimeRange timeRange) {
+    if (timeRange == TimeRange.custom && 
+        filterState.timeRange == TimeRange.custom &&
+        filterState.customStartDate != null && 
+        filterState.customEndDate != null) {
+      final startDate = filterState.customStartDate!;
+      final endDate = filterState.customEndDate!;
+      return '${startDate.month}/${startDate.day}-${endDate.month}/${endDate.day}';
+    }
+    return timeRange.label;
+  }
+
+  void _handleSelection(BuildContext context, TimeRange timeRange) {
+    if (timeRange == TimeRange.custom) {
+      _showDateRangePicker(context);
+    } else {
+      onChanged(timeRange);
+    }
+  }
+
+  Future<void> _showDateRangePicker(BuildContext context) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: filterState.customStartDate != null && filterState.customEndDate != null
+          ? DateTimeRange(
+              start: filterState.customStartDate!,
+              end: filterState.customEndDate!,
+            )
+          : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      onCustomDatesChanged(picked.start, picked.end);
+      onChanged(TimeRange.custom);
+    }
   }
 }
 

@@ -1,255 +1,236 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:intl/intl.dart';
 
-class GoalProgressCard extends StatefulWidget {
+import '../../data/models/investment_goal.dart';
+import '../providers/investment_goal_provider.dart';
+import 'goal_setting_dialog.dart';
+
+/// 目标进度卡片 - 显示月度/年度收益目标和进度
+class GoalProgressCard extends ConsumerWidget {
   final String title;
-  final Map<String, dynamic> progress;
-  final VoidCallback? onSetGoal;
-  final VoidCallback? onEditGoal;
+  final double currentValue;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final bool isMonthly; // true为月度，false为年度
 
   const GoalProgressCard({
     super.key,
     required this.title,
-    required this.progress,
-    this.onSetGoal,
-    this.onEditGoal,
+    required this.currentValue,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.isMonthly,
   });
 
   @override
-  State<GoalProgressCard> createState() => _GoalProgressCardState();
-}
-
-class _GoalProgressCardState extends State<GoalProgressCard>
-    with TickerProviderStateMixin {
-  late AnimationController _progressController;
-  late Animation<double> _progressAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // 进度条动画控制器
-    _progressController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    // 进度条动画
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    // 启动动画
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _progressController.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _progressController.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(GoalProgressCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // 如果进度数据发生变化，重新启动动画
-    if (oldWidget.progress != widget.progress) {
-      final hasGoal = widget.progress['hasGoal'] as bool? ?? false;
-      if (hasGoal) {
-        // 重新启动进度动画
-        _progressController.reset();
-        _progressController.forward();
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final hasGoal = widget.progress['hasGoal'] as bool;
+    
+    // 使用对应的单个目标provider
+    final goalAsync = isMonthly 
+      ? ref.watch(currentMonthlyGoalProvider)
+      : ref.watch(currentYearlyGoalProvider);
 
-    if (!hasGoal) {
-      return _buildNoGoalCard(context, theme);
-    }
-
-    return _buildGoalCard(context, theme);
+    return goalAsync.when(
+      data: (goal) => _buildCard(context, theme, goal),
+      loading: () => _buildLoadingCard(theme),
+      error: (_, __) => _buildCard(context, theme, null),
+    );
   }
 
-  Widget _buildNoGoalCard(BuildContext context, ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(LucideIcons.target, color: Colors.grey[600], size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  widget.title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: widget.onSetGoal,
-                  icon: const Icon(LucideIcons.plus, size: 16),
-                  label: const Text('设置目标'),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '暂未设置${widget.title}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+  Widget _buildCard(BuildContext context, ThemeData theme, InvestmentGoal? goal) {
+    final targetValue = goal?.targetAmount.toDouble() ?? 0.0;
+    
+    final progress = targetValue > 0 ? (currentValue / targetValue).clamp(0.0, 1.0) : 0.0;
+    final progressPercentage = (progress * 100).toInt();
+    
+    // 根据进度确定圆环颜色
+    final progressColor = _getProgressColor(progress);
+
+    return GestureDetector(
+      onTap: () => _showGoalSettingDialog(context, goal),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
             ),
           ],
+          border: Border.all(
+            color: color.withValues(alpha: 0.08),
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildGoalCard(BuildContext context, ThemeData theme) {
-    final targetAmount = widget.progress['targetAmount'] as double;
-    final actualAmount = widget.progress['actualAmount'] as double;
-    final completionRate = widget.progress['completionRate'] as double;
-    final timeProgress = widget.progress['timeProgress'] as double;
-    final status = widget.progress['status'] as String;
-    final lastYearComparison = widget.progress['lastYearComparison'] as double;
-
-    final progressColor = _getProgressColor(completionRate);
-    final statusInfo = _getStatusInfo(status);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Icon(LucideIcons.target, color: progressColor, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  widget.title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: widget.onEditGoal,
-                  icon: const Icon(LucideIcons.settings, size: 16),
-                  style: IconButton.styleFrom(
-                    padding: const EdgeInsets.all(8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Enhanced Progress bar with animation
-            _buildAnimatedProgressBar(
-              context,
-              theme,
-              completionRate,
-              progressColor,
-            ),
-            const SizedBox(height: 16),
-
-            // Stats
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    '目标',
-                    '¥${targetAmount.toStringAsFixed(0)}',
-                    Colors.blue,
-                    theme,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    '实际',
-                    '¥${actualAmount.toStringAsFixed(0)}',
-                    actualAmount >= 0 ? Colors.green : Colors.red,
-                    theme,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    '时间进度',
-                    '${timeProgress.toStringAsFixed(1)}%',
-                    Colors.orange,
-                    theme,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Status and comparison
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: statusInfo['color'].withAlpha(25),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: color,
+                  ),
+                ),
+                const Spacer(),
+                // 进度圆环
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Stack(
                     children: [
-                      Icon(
-                        statusInfo['icon'],
-                        size: 12,
-                        color: statusInfo['color'],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        statusInfo['text'],
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: statusInfo['color'],
-                          fontWeight: FontWeight.w600,
+                      CustomPaint(
+                        size: const Size(48, 48),
+                        painter: _CircularProgressPainter(
+                          progress: progress,
+                          color: progressColor, // 使用进度相关的颜色
                         ),
+                      ),
+                      Center(
+                        child: targetValue > 0 
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (progress >= 1.0) ...[
+                                  Icon(
+                                    LucideIcons.check,
+                                    size: 12,
+                                    color: progressColor,
+                                  ),
+                                  const SizedBox(width: 2),
+                                ]
+                                else
+                                  Text(
+                                    '$progressPercentage%',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: progressColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : Icon(
+                              LucideIcons.target,
+                              size: 14,
+                              color: Colors.grey[400],
+                            ),
                       ),
                     ],
                   ),
                 ),
-                const Spacer(),
-                if (lastYearComparison != 0)
-                  Row(
-                    children: [
-                      Icon(
-                        lastYearComparison > 0 ? LucideIcons.trendingUp : LucideIcons.trendingDown,
-                        size: 14,
-                        color: lastYearComparison > 0 ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '同比${lastYearComparison > 0 ? '+' : ''}${lastYearComparison.toStringAsFixed(1)}%',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: lastYearComparison > 0 ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '¥${currentValue.toStringAsFixed(0)}',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 28,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
                   ),
+                ),
+                if (targetValue > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: progressColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: progressColor.withValues(alpha: 0.2),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (progress >= 1.0) ...[
+                          Icon(
+                            _getProgressStatusIcon(progress),
+                            size: 10,
+                            color: progressColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getProgressStatusText(progress),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: progressColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ] else ...[
+                          Icon(
+                            LucideIcons.target,
+                            size: 10,
+                            color: progressColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '目标 ¥${targetValue.toStringAsFixed(0)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: progressColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '点击设置目标',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -258,234 +239,170 @@ class _GoalProgressCardState extends State<GoalProgressCard>
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: Colors.grey[600],
+  Widget _buildLoadingCard(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Container(
+            width: 120,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// 构建动画进度条
-  Widget _buildAnimatedProgressBar(
-    BuildContext context,
-    ThemeData theme,
-    double completionRate,
-    Color progressColor,
-  ) {
-    final normalizedProgress = (completionRate / 100).clamp(0.0, 1.0);
-
-    return AnimatedBuilder(
-      animation: _progressController,
-      builder: (context, child) {
-        final animatedProgress = normalizedProgress * _progressAnimation.value;
-
-        return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题和百分比
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '目标完成度',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: progressColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: progressColor.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          '${completionRate.toStringAsFixed(1)}%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: progressColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 自定义进度条
-                  Container(
-                    height: 12,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      color: Colors.grey[200],
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 2,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Stack(
-                        children: [
-                          // 背景
-                          Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            color: Colors.grey[200],
-                          ),
-
-                          // 进度条
-                          FractionallySizedBox(
-                            widthFactor: animatedProgress,
-                            child: Container(
-                              height: double.infinity,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    progressColor.withValues(alpha: 0.8),
-                                    progressColor,
-                                  ],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: progressColor.withValues(alpha: 0.3),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // 高光效果
-                          if (animatedProgress > 0)
-                            FractionallySizedBox(
-                              widthFactor: animatedProgress,
-                              child: Container(
-                                height: double.infinity,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0.3),
-                                      Colors.transparent,
-                                      Colors.white.withValues(alpha: 0.1),
-                                    ],
-                                    stops: const [0.0, 0.5, 1.0],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // 进度指示器（如果完成度很高）
-                  if (completionRate >= 100) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.checkCircle,
-                          size: 16,
-                          color: progressColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '目标已完成！',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: progressColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else if (completionRate >= 80) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          LucideIcons.zap,
-                          size: 16,
-                          color: progressColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '即将完成目标！',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: progressColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              );
-      },
+  void _showGoalSettingDialog(BuildContext context, InvestmentGoal? currentGoal) {
+    showDialog(
+      context: context,
+      builder: (context) => GoalSettingDialog(
+        currentGoal: currentGoal,
+        isYearly: !isMonthly,
+      ),
     );
   }
 
-  Color _getProgressColor(double completionRate) {
-    if (completionRate >= 100) return Colors.green;
-    if (completionRate >= 80) return Colors.blue;
-    if (completionRate >= 50) return Colors.orange;
-    return Colors.red;
-  }
-
-  Map<String, dynamic> _getStatusInfo(String status) {
-    switch (status) {
-      case 'conservative':
-        return {
-          'text': '过于保守',
-          'color': Colors.blue,
-          'icon': LucideIcons.trendingDown,
-        };
-      case 'aggressive':
-        return {
-          'text': '过于激进',
-          'color': Colors.red,
-          'icon': LucideIcons.trendingUp,
-        };
-      case 'reasonable':
-        return {
-          'text': '进度合理',
-          'color': Colors.green,
-          'icon': LucideIcons.checkCircle,
-        };
-      default:
-        return {
-          'text': '未知',
-          'color': Colors.grey,
-          'icon': LucideIcons.helpCircle,
-        };
+  /// 根据进度获取圆环颜色
+  Color _getProgressColor(double progress) {
+    if (progress >= 1.2) {
+      // 超额完成20%以上：深绿色（卓越）
+      return const Color(0xFF059669); // 深绿色
+    } else if (progress >= 1.0) {
+      // 达到或略微超过目标：绿色（成功）
+      return const Color(0xFF16A34A); // 标准绿色
+    } else if (progress >= 0.8) {
+      // 接近目标(80%以上)：蓝色（良好进展）
+      return const Color(0xFF2563EB); // 蓝色
+    } else if (progress >= 0.5) {
+      // 中等进展(50%-80%)：橙色（需要努力）
+      return const Color(0xFFF59E0B); // 橙色
+    } else {
+      // 进展较少(<50%)：红色（需要关注）
+      return const Color(0xFFDC2626); // 红色
     }
+  }
+
+  /// 根据进度获取状态文本
+  String _getProgressStatusText(double progress) {
+    if (progress >= 1.2) {
+      return '超额完成'; 
+    } else if (progress >= 1.0) {
+      return '已完成';
+    } else if (progress >= 0.8) {
+      return '接近目标';
+    } else if (progress >= 0.5) {
+      return '进展中';
+    } else {
+      return '需要努力';
+    }
+  }
+
+  /// 根据进度获取状态图标
+  IconData _getProgressStatusIcon(double progress) {
+    if (progress >= 1.2) {
+      return LucideIcons.crown; // 王冠图标表示卓越
+    } else if (progress >= 1.0) {
+      return LucideIcons.checkCircle2; // 完成
+    } else if (progress >= 0.8) {
+      return LucideIcons.trendingUp; // 上升趋势
+    } else if (progress >= 0.5) {
+      return LucideIcons.activity; // 活动中
+    } else {
+      return LucideIcons.alertCircle; // 需要关注
+    }
+  }
+}
+
+/// 自定义圆形进度条绘制器
+class _CircularProgressPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  _CircularProgressPainter({
+    required this.progress,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double strokeWidth = 4.0;
+    final double radius = size.width / 2 - strokeWidth / 2;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+
+    // 背景圆环
+    final Paint backgroundPaint = Paint()
+      ..color = color.withValues(alpha: 0.1)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, backgroundPaint);
+
+    // 进度圆环
+    if (progress > 0) {
+      final Paint progressPaint = Paint()
+        ..color = color
+        ..strokeWidth = strokeWidth
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+
+      const double startAngle = -3.14159 / 2; // 从顶部开始
+      final double sweepAngle = 2 * 3.14159 * progress;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        progressPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return oldDelegate is! _CircularProgressPainter ||
+        oldDelegate.progress != progress ||
+        oldDelegate.color != color;
   }
 }

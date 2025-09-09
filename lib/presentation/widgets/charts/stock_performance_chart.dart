@@ -27,44 +27,53 @@ class StockPerformanceChart extends ConsumerWidget {
     final colorsAsync = ref.watch(profitLossColorsProvider);
 
     return colorsAsync.when(
-      data: (colors) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      data: (colors) => LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          final titleFontSize = isMobile ? 16.0 : null;
+          final iconSize = isMobile ? 18.0 : 20.0;
+          
+          return Card(
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      LucideIcons.barChart3,
-                      color: theme.colorScheme.onPrimaryContainer,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(isMobile ? 6 : 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          LucideIcons.barChart3,
+                          color: theme.colorScheme.onPrimaryContainer,
+                          size: iconSize,
+                        ),
                       ),
-                    ),
+                      SizedBox(width: isMobile ? 8 : 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: titleFontSize,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isMobile ? 12 : 16),
+                  Expanded(
+                    child: _buildChart(context, colors, isMobile),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _buildChart(context, colors),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
       loading: () => Card(
         child: SizedBox(
@@ -81,7 +90,7 @@ class StockPerformanceChart extends ConsumerWidget {
     );
   }
 
-  Widget _buildChart(BuildContext context, ProfitLossColors colors) {
+  Widget _buildChart(BuildContext context, ProfitLossColors colors, bool isMobile) {
     final stockData = _calculateStockPerformance();
 
     if (stockData.isEmpty) {
@@ -111,7 +120,7 @@ class StockPerformanceChart extends ConsumerWidget {
           BarChartRodData(
             toY: profitLoss,
             color: profitLoss >= 0 ? colors.getProfitColor() : colors.getLossColor(),
-            width: 20,
+            width: isMobile ? 15 : 20,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(4),
               topRight: Radius.circular(4),
@@ -120,6 +129,11 @@ class StockPerformanceChart extends ConsumerWidget {
         ],
       );
     }).toList();
+
+    final labelFontSize = isMobile ? 8.0 : 10.0;
+    final reservedSizeLeft = isMobile ? 50.0 : 60.0;
+    final reservedSizeBottom = isMobile ? 35.0 : 40.0;
+    final tooltipFontSize = isMobile ? 11.0 : 12.0;
 
     return BarChart(
       BarChartData(
@@ -148,23 +162,30 @@ class StockPerformanceChart extends ConsumerWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
+              reservedSize: reservedSizeBottom,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index < 0 || index >= stockData.length) return const Text('');
 
                 final stockInfo = stockData[index];
+                final stockName = stockInfo['stockName'] as String;
+                // 在手机端截断过长的股票名称
+                final displayName = isMobile && stockName.length > 4 
+                    ? '${stockName.substring(0, 3)}...' 
+                    : stockName;
+
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: EdgeInsets.only(top: isMobile ? 4 : 8),
                     child: Text(
-                      stockInfo['stockName'] as String,
-                      style: const TextStyle(
+                      displayName,
+                      style: TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
-                        fontSize: 10,
+                        fontSize: labelFontSize,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 );
@@ -175,17 +196,18 @@ class StockPerformanceChart extends ConsumerWidget {
             sideTitles: SideTitles(
               showTitles: true,
               interval: _calculateInterval(stockData.map((e) => e['profitLoss'] as double)),
-              reservedSize: 60,
+              reservedSize: reservedSizeLeft,
               getTitlesWidget: (value, meta) {
                 return SideTitleWidget(
                   axisSide: meta.axisSide,
                   child: Text(
                     _formatCurrency(value),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.grey,
                       fontWeight: FontWeight.bold,
-                      fontSize: 10,
+                      fontSize: labelFontSize,
                     ),
+                    textAlign: TextAlign.right,
                   ),
                 );
               },
@@ -214,6 +236,7 @@ class StockPerformanceChart extends ConsumerWidget {
                 TextStyle(
                   color: profitLoss >= 0 ? colors.getProfitColor() : colors.getLossColor(),
                   fontWeight: FontWeight.bold,
+                  fontSize: tooltipFontSize,
                 ),
               );
             },

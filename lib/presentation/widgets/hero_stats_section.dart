@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../data/models/transaction.dart';
 import '../../data/services/transaction_stats_service.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/color_theme_provider.dart';
@@ -9,33 +10,50 @@ import '../providers/color_theme_provider.dart';
 /// Hero统计概览区域 - 显示关键投资指标
 class HeroStatsSection extends ConsumerWidget {
   final VoidCallback? onTap;
+  final List<Transaction>? filteredTransactions; // 筛选后的交易列表
   
   const HeroStatsSection({
     super.key,
     this.onTap,
+    this.filteredTransactions,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final comprehensiveStatsAsync = ref.watch(comprehensiveStatsProvider);
     final colorsAsync = ref.watch(profitLossColorsProvider);
 
-    return comprehensiveStatsAsync.when(
-      data: (stats) => colorsAsync.when(
-        data: (colors) => _buildStatsCard(context, stats, colors),
+    // 如果有筛选后的数据，直接计算统计；否则使用全部数据
+    if (filteredTransactions != null) {
+      final service = TransactionStatsService();
+      final stats = service.calculateComprehensiveStats(filteredTransactions!);
+      
+      return colorsAsync.when(
+        data: (colors) => _buildStatsCard(context, stats, colors, isFiltered: true),
         loading: () => _buildLoadingCard(context),
         error: (_, __) => _buildErrorCard(context),
-      ),
-      loading: () => _buildLoadingCard(context),
-      error: (error, _) => _buildErrorCard(context, error: error.toString()),
-    );
+      );
+    } else {
+      // 使用原有的provider获取全部数据
+      final comprehensiveStatsAsync = ref.watch(comprehensiveStatsProvider);
+      
+      return comprehensiveStatsAsync.when(
+        data: (stats) => colorsAsync.when(
+          data: (colors) => _buildStatsCard(context, stats, colors, isFiltered: false),
+          loading: () => _buildLoadingCard(context),
+          error: (_, __) => _buildErrorCard(context),
+        ),
+        loading: () => _buildLoadingCard(context),
+        error: (error, _) => _buildErrorCard(context, error: error.toString()),
+      );
+    }
   }
 
   Widget _buildStatsCard(
     BuildContext context, 
     ComprehensiveStats stats, 
     dynamic colors,
+    {required bool isFiltered}
   ) {
     final theme = Theme.of(context);
     final netProfitColor = colors.getColorByValue(stats.netProfit);
@@ -49,8 +67,12 @@ class HeroStatsSection extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.primaryContainer,
-              theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+              isFiltered 
+                ? theme.colorScheme.secondaryContainer
+                : theme.colorScheme.primaryContainer,
+              (isFiltered 
+                ? theme.colorScheme.secondaryContainer
+                : theme.colorScheme.primaryContainer).withValues(alpha: 0.7),
             ],
           ),
           borderRadius: BorderRadius.circular(16),
@@ -76,29 +98,53 @@ class HeroStatsSection extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
+                          color: isFiltered 
+                            ? theme.colorScheme.secondary
+                            : theme.colorScheme.primary,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
-                          LucideIcons.trendingUp,
-                          color: theme.colorScheme.onPrimary,
+                          isFiltered ? LucideIcons.filter : LucideIcons.trendingUp,
+                          color: isFiltered 
+                            ? theme.colorScheme.onSecondary
+                            : theme.colorScheme.onPrimary,
                           size: 20,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        '投资概览',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isFiltered ? '筛选结果' : '投资概览',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isFiltered 
+                                ? theme.colorScheme.onSecondaryContainer
+                                : theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          if (isFiltered) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '基于当前筛选条件',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: (isFiltered 
+                                  ? theme.colorScheme.onSecondaryContainer
+                                  : theme.colorScheme.onPrimaryContainer).withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                   if (onTap != null)
                     Icon(
                       LucideIcons.chevronRight,
-                      color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                      color: (isFiltered 
+                        ? theme.colorScheme.onSecondaryContainer
+                        : theme.colorScheme.onPrimaryContainer).withValues(alpha: 0.7),
                       size: 20,
                     ),
                 ],
@@ -120,10 +166,12 @@ class HeroStatsSection extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _MainStatCard(
-                      label: '今日盈亏',
-                      value: stats.todayProfit,
-                      color: colors.getColorByValue(stats.todayProfit),
-                      icon: LucideIcons.calendar,
+                      label: isFiltered ? '总盈利' : '今日盈亏',
+                      value: isFiltered ? stats.totalProfit : stats.todayProfit,
+                      color: isFiltered 
+                        ? colors.getColorByValue(stats.totalProfit)
+                        : colors.getColorByValue(stats.todayProfit),
+                      icon: isFiltered ? LucideIcons.plus : LucideIcons.calendar,
                       isMain: false,
                     ),
                   ),
@@ -136,18 +184,18 @@ class HeroStatsSection extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _SecondaryStatItem(
-                      label: '胜率',
-                      value: '${stats.winRate.toStringAsFixed(1)}%',
-                      icon: LucideIcons.target,
-                      color: theme.colorScheme.secondary,
+                      label: isFiltered ? '总亏损' : '胜率',
+                      value: isFiltered ? '-${stats.totalLoss.toStringAsFixed(2)}' : '${stats.winRate.toStringAsFixed(1)}%',
+                      icon: isFiltered ? LucideIcons.minus : LucideIcons.target,
+                      color: isFiltered ? Colors.red : theme.colorScheme.secondary,
                     ),
                   ),
                   Expanded(
                     child: _SecondaryStatItem(
-                      label: 'ROI',
-                      value: '${stats.roi.toStringAsFixed(2)}%',
-                      icon: LucideIcons.percent,
-                      color: colors.getColorByValue(stats.roi),
+                      label: isFiltered ? '胜率' : 'ROI',
+                      value: isFiltered ? '${stats.winRate.toStringAsFixed(1)}%' : '${stats.roi.toStringAsFixed(2)}%',
+                      icon: isFiltered ? LucideIcons.target : LucideIcons.percent,
+                      color: isFiltered ? theme.colorScheme.secondary : colors.getColorByValue(stats.roi),
                     ),
                   ),
                   Expanded(

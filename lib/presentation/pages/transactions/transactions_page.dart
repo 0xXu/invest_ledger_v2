@@ -90,10 +90,21 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
           slivers: [
             // Hero 统计概览区域
             SliverToBoxAdapter(
-              child: HeroStatsSection(
-                onTap: () {
-                  context.push('/analytics');
+              child: transactionsAsync.when(
+                data: (allTransactions) {
+                  // 应用相同的筛选逻辑
+                  final filteredTransactions = _applyFilters(allTransactions, filterState);
+                  final displayTransactions = filteredTransactions;
+                  
+                  return HeroStatsSection(
+                    filteredTransactions: displayTransactions,
+                    onTap: () {
+                      context.push('/analytics');
+                    },
+                  );
                 },
+                loading: () => const HeroStatsSection(), // 显示加载状态
+                error: (_, __) => const HeroStatsSection(), // 显示错误状态
               ),
             ),
             // 智能筛选工具栏
@@ -112,8 +123,8 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
               data: (allTransactions) {
                 // 应用筛选器和排序
                 final filteredTransactions = _applyFilters(allTransactions, filterState);
-                // 只显示有盈亏的交易（盈亏不为0的记录）
-                final displayTransactions = filteredTransactions.where((t) => t.profitLoss.toDouble() != 0.0).toList();
+                // 显示所有已筛选的交易记录（包括盈亏为0的记录）
+                final displayTransactions = filteredTransactions;
                 
                 if (displayTransactions.isEmpty) {
                   return SliverFillRemaining(
@@ -151,7 +162,6 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
                 return SliverFillRemaining(
                   child: GroupedTransactionsList(
                     transactions: displayTransactions,
-                    displayMode: RecordDisplayMode.profitLoss,
                     onRefresh: () {
                       ref.invalidate(transactionNotifierProvider);
                       ref.invalidate(comprehensiveStatsProvider);
@@ -225,11 +235,6 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
     // 根据时间范围设置开始和结束日期
     final now = DateTime.now();
     switch (filterState.timeRange) {
-      case TimeRange.today:
-        final today = DateTime(now.year, now.month, now.day);
-        startDate = today;
-        endDate = today.add(const Duration(days: 1));
-        break;
       case TimeRange.thisWeek:
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
         startDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
@@ -238,6 +243,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
       case TimeRange.thisMonth:
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month + 1, 1);
+        break;
+      case TimeRange.thisYear:
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year + 1, 1, 1);
+        break;
+      case TimeRange.custom:
+        startDate = filterState.customStartDate;
+        endDate = filterState.customEndDate;
         break;
       case TimeRange.all:
         // 不设置时间筛选
@@ -262,10 +275,31 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
         filteredTransactions.sort((a, b) => a.date.compareTo(b.date));
         break;
       case SortOption.profitDesc:
-        filteredTransactions.sort((a, b) => b.profitLoss.compareTo(a.profitLoss));
-        break;
       case SortOption.profitAsc:
-        filteredTransactions.sort((a, b) => a.profitLoss.compareTo(b.profitLoss));
+        // 对于盈亏排序，需要先按日期分组，然后按每日净盈亏排序
+        final grouped = <DateTime, List<Transaction>>{};
+        for (final transaction in filteredTransactions) {
+          final date = DateTime(
+            transaction.date.year,
+            transaction.date.month,
+            transaction.date.day,
+          );
+          grouped.putIfAbsent(date, () => []).add(transaction);
+        }
+        
+        // 计算每日净盈亏并排序
+        final sortedDates = grouped.keys.toList()..sort((a, b) {
+          final aProfit = grouped[a]!.fold(0.0, (sum, t) => sum + t.profitLoss.toDouble());
+          final bProfit = grouped[b]!.fold(0.0, (sum, t) => sum + t.profitLoss.toDouble());
+          return filterState.sortOption == SortOption.profitDesc 
+            ? bProfit.compareTo(aProfit) 
+            : aProfit.compareTo(bProfit);
+        });
+        
+        // 重新排列交易记录
+        filteredTransactions = sortedDates
+          .expand((date) => grouped[date]!)
+          .toList();
         break;
     }
     

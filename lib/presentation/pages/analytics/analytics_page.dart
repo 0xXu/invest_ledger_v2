@@ -252,44 +252,77 @@ class _AnalyticsContent extends StatelessWidget {
         
         // 图表区域
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                
-                // 月度盈亏趋势图
-                SizedBox(
-                  height: 400,
-                  child: ProfitLossChart(
-                    transactions: transactions.cast(),
-                    title: '月度盈亏趋势',
-                  ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 根据屏幕宽度判断是否为手机端
+              final isMobile = constraints.maxWidth < 600;
+              final chartHeight = isMobile ? 280.0 : 400.0;
+              final horizontalPadding = isMobile ? 8.0 : 16.0;
+              
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: 16,
                 ),
-                const SizedBox(height: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    
+                    // 月度盈亏趋势图
+                    Container(
+                      height: chartHeight,
+                      margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: EdgeInsets.all(isMobile ? 8 : 12),
+                          child: ProfitLossChart(
+                            transactions: transactions.cast(),
+                            title: '月度盈亏趋势',
+                          ),
+                        ),
+                      ),
+                    ),
 
-                // 股票表现排行
-                SizedBox(
-                  height: 400,
-                  child: StockPerformanceChart(
-                    transactions: transactions.cast(),
-                    title: '股票表现排行（前10）',
-                    maxStocks: 10,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                    // 股票表现排行
+                    Container(
+                      height: chartHeight,
+                      margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: EdgeInsets.all(isMobile ? 8 : 12),
+                          child: StockPerformanceChart(
+                            transactions: transactions.cast(),
+                            title: '股票表现排行（前10）',
+                            maxStocks: 10,
+                          ),
+                        ),
+                      ),
+                    ),
 
-                // 股票投资分布图
-                SizedBox(
-                  height: 400,
-                  child: StockDistributionChart(
-                    transactions: transactions.cast(),
-                    title: '股票投资分布',
-                  ),
+                    // 股票投资分布图
+                    Container(
+                      height: chartHeight,
+                      margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: EdgeInsets.all(isMobile ? 8 : 12),
+                          child: StockDistributionChart(
+                            transactions: transactions.cast(),
+                            title: '股票投资分布',
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // 底部间距
+                    SizedBox(height: isMobile ? 16 : 24),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -309,72 +342,95 @@ class _StatsOverview extends ConsumerWidget {
     final colorsAsync = ref.watch(profitLossColorsProvider);
 
     return colorsAsync.when(
-      data: (colors) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '投资概览',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+      data: (colors) => LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          
+          return Card(
+            margin: EdgeInsets.symmetric(
+              horizontal: isMobile ? 8.0 : 16.0,
+              vertical: 8.0,
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: _StatItem(
-                      label: '总盈利',
-                      value: '¥${((stats['totalProfit'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
-                      color: colors.getProfitColor(),
-                      icon: LucideIcons.trendingUp,
+                  Text(
+                    '投资概览',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 18 : null,
                     ),
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: '总亏损',
-                      value: '¥${((stats['totalLoss'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
-                      color: colors.getLossColor(),
-                      icon: LucideIcons.trendingDown,
-                    ),
+                  SizedBox(height: isMobile ? 12 : 16),
+                  
+                  // 第一行：总盈利 & 总亏损
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatItem(
+                          label: '总盈利',
+                          value: '¥${((stats['totalProfit'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                          color: colors.getProfitColor(),
+                          icon: LucideIcons.trendingUp,
+                          isCompact: isMobile,
+                        ),
+                      ),
+                      SizedBox(width: isMobile ? 6 : 8),
+                      Expanded(
+                        child: _StatItem(
+                          label: '总亏损',
+                          value: '¥${((stats['totalLoss'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                          color: colors.getLossColor(),
+                          icon: LucideIcons.trendingDown,
+                          isCompact: isMobile,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: isMobile ? 8 : 12),
+                  
+                  // 第二行：胜率 & ROI
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StatItem(
+                          label: '胜率',
+                          value: '${((stats['winRate'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(1)}%',
+                          color: const Color(0xFF2196F3),
+                          icon: LucideIcons.target,
+                          isCompact: isMobile,
+                        ),
+                      ),
+                      SizedBox(width: isMobile ? 6 : 8),
+                      Expanded(
+                        child: _StatItem(
+                          label: 'ROI',
+                          value: '${((stats['roi'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}%',
+                          color: colors.getColorByValue(((stats['roi'] as num?)?.toDouble() ?? 0.0)),
+                          icon: LucideIcons.percent,
+                          isCompact: isMobile,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatItem(
-                      label: '胜率',
-                      value: '${((stats['winRate'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(1)}%',
-                      color: const Color(0xFF2196F3),
-                      icon: LucideIcons.target,
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'ROI',
-                      value: '${((stats['roi'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}%',
-                      color: colors.getColorByValue(((stats['roi'] as num?)?.toDouble() ?? 0.0)),
-                      icon: LucideIcons.percent,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
-      loading: () => const Card(
-        child: SizedBox(
+      loading: () => Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: const SizedBox(
           height: 120,
           child: Center(child: CircularProgressIndicator()),
         ),
       ),
-      error: (_, __) => const Card(
-        child: SizedBox(
+      error: (_, __) => Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: const SizedBox(
           height: 120,
           child: Center(child: Icon(Icons.error)),
         ),
@@ -388,42 +444,54 @@ class _StatItem extends StatelessWidget {
   final String value;
   final Color color;
   final IconData icon;
+  final bool isCompact;
 
   const _StatItem({
     required this.label,
     required this.value,
     required this.color,
     required this.icon,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final paddingValue = isCompact ? 8.0 : 12.0;
+    final iconSize = isCompact ? 20.0 : 24.0;
 
     return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.all(paddingValue),
+      margin: EdgeInsets.symmetric(horizontal: isCompact ? 2 : 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: color, size: iconSize),
+          SizedBox(height: isCompact ? 6 : 8),
           Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+              fontSize: isCompact ? 11 : null,
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+          SizedBox(height: isCompact ? 2 : 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: isCompact ? 14 : null,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],

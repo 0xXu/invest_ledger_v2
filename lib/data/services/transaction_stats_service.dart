@@ -86,6 +86,7 @@ class TransactionStatsService {
   /// 按日期分组交易记录
   Map<DateTime, List<Transaction>> groupTransactionsByDate(List<Transaction> transactions) {
     final grouped = <DateTime, List<Transaction>>{};
+    final dateOrder = <DateTime>[]; // 保持日期出现的顺序
     
     for (final transaction in transactions) {
       final date = DateTime(
@@ -98,11 +99,13 @@ class TransactionStatsService {
         grouped[date]!.add(transaction);
       } else {
         grouped[date] = [transaction];
+        dateOrder.add(date); // 记录日期第一次出现的顺序
       }
     }
     
+    // 按照日期在原始交易列表中第一次出现的顺序返回
     return Map.fromEntries(
-      grouped.entries.toList()..sort((a, b) => b.key.compareTo(a.key))
+      dateOrder.map((date) => MapEntry(date, grouped[date]!))
     );
   }
 
