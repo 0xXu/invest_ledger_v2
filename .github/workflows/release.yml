@@ -69,6 +69,12 @@ jobs:
           echo "storeFile=../upload-keystore.jks" >> android/key.properties
           echo "org.gradle.jvmargs=-Xmx4096m" >> android/gradle.properties
           echo "org.gradle.vfs.watch=false" >> android/gradle.properties
+          
+          # 验证签名配置文件
+          echo "🔐 验证签名配置："
+          ls -la android/key.properties
+          ls -la android/upload-keystore.jks
+          echo "✅ 签名文件创建成功"
 
       - name: 构建 APK
         run: |
@@ -96,11 +102,32 @@ jobs:
           fi
 
           # 使用Flutter构建APK
-          flutter build apk --release --build-name=$VERSION_NAME --build-number=$BUILD_NUMBER
+          echo "🚀 开始构建APK..."
+          flutter build apk --release --build-name=$VERSION_NAME --build-number=$BUILD_NUMBER --verbose
 
-          # 列出构建产物
-          echo "生成的 APK："
-          find build -name "*.apk" -type f
+          # 检查构建是否成功
+          BUILD_STATUS=$?
+          if [ $BUILD_STATUS -ne 0 ]; then
+            echo "❌ Flutter构建失败，退出码: $BUILD_STATUS"
+            exit 1
+          fi
+          echo "✅ Flutter构建完成"
+
+          # 详细检查构建结果
+          echo "🔍 检查构建目录结构："
+          find build -name "*.apk" -type f || echo "❌ 没有找到APK文件"
+          
+          echo "🔍 检查Android构建目录："
+          find android -name "*.apk" -type f || echo "❌ Android目录中没有APK文件"
+          
+          echo "🔍 完整构建目录结构："
+          ls -la build/app/outputs/ || echo "❌ outputs目录不存在"
+          
+          # 如果标准位置没有APK，检查其他可能位置
+          if [ ! -f "build/app/outputs/flutter-apk/app-release.apk" ]; then
+            echo "🔧 标准位置没有APK，搜索所有可能位置..."
+            find . -name "*.apk" -type f 2>/dev/null || echo "❌ 整个项目中都没有找到APK文件"
+          fi
 
       - name: 生成构建信息
         run: |
@@ -113,14 +140,16 @@ jobs:
           echo "" >> build_info.md
           echo "### 📦 构建产物" >> build_info.md
           echo "" >> build_info.md
-          ls -la build/app/outputs/flutter-apk/ >> build_info.md
+          find build -name "*.apk" -type f >> build_info.md || echo "没有找到APK文件" >> build_info.md
+          find android -name "*.apk" -type f >> build_info.md || echo "Android目录中没有APK文件" >> build_info.md
 
       - name: 📤 上传 APK 构建产物
         uses: actions/upload-artifact@v4
         with:
           name: android-apks
           path: |
-            build/app/outputs/flutter-apk/*.apk
+            build/**/*.apk
+            android/**/*.apk
             build_info.md
           retention-days: 30
 
