@@ -76,6 +76,16 @@ jobs:
           ls -la android/upload-keystore.jks
           echo "✅ 签名文件创建成功"
 
+      - name: 生成 Gradle Wrapper
+        run: |
+          cd android
+          # 使用系统gradle生成wrapper
+          gradle wrapper --gradle-version=8.12 --distribution-type=all
+          # 验证wrapper文件
+          ls -la gradlew gradlew.bat
+          chmod +x gradlew
+          echo "✅ Gradle wrapper 生成完成"
+
       - name: 构建 APK
         run: |
           # 获取版本号
@@ -101,17 +111,30 @@ jobs:
             echo "  - 使用指定版本: $VERSION_NAME"
           fi
 
-          # 使用Flutter构建APK
+          # 使用Gradle直接构建APK（绕过Flutter的文件查找问题）
           echo "🚀 开始构建APK..."
-          flutter build apk --release --build-name=$VERSION_NAME --build-number=$BUILD_NUMBER --verbose
+          
+          # 首先运行Flutter预构建步骤来生成必要的文件
+          flutter build apk --release --build-name=$VERSION_NAME --build-number=$BUILD_NUMBER --no-gradle || echo "Flutter预构建完成（忽略错误）"
+          
+          # 然后使用Gradle直接构建
+          cd android
+          ./gradlew assembleRelease -PversionName=$VERSION_NAME -PversionCode=$BUILD_NUMBER --stacktrace --info
+          cd ..
 
-          # 检查构建是否成功
-          BUILD_STATUS=$?
-          if [ $BUILD_STATUS -ne 0 ]; then
-            echo "❌ Flutter构建失败，退出码: $BUILD_STATUS"
+          # 检查Gradle构建是否成功
+          if [ ! -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+            echo "❌ Gradle构建失败，APK文件未生成"
             exit 1
           fi
-          echo "✅ Flutter构建完成"
+          echo "✅ Gradle构建完成"
+          
+          # 创建Flutter期望的目录结构
+          mkdir -p build/app/outputs/flutter-apk/
+          
+          # 复制APK到Flutter期望的位置
+          cp android/app/build/outputs/apk/release/app-release.apk build/app/outputs/flutter-apk/
+          echo "✅ APK已复制到Flutter标准位置"
 
           # 详细检查构建结果
           echo "🔍 检查构建目录结构："
