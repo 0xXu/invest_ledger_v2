@@ -104,6 +104,9 @@ jobs:
           # 使用Gradle直接构建APK（绕过Flutter的文件查找问题）
           echo "🚀 开始构建APK..."
           
+          # 确保gradlew有执行权限
+          chmod +x android/gradlew
+          
           # 验证Gradle wrapper版本
           cd android
           ./gradlew --version
