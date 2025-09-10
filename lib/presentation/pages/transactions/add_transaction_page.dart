@@ -47,6 +47,53 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     super.dispose();
   }
 
+  /// 快速继续录入（清空表单）
+  void _quickContinueEntry() {
+    // 显示确认对话框
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清空表单'),
+        content: const Text('确定要清空当前表单内容吗？未保存的数据将丢失。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _resetForm();
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 重置表单以便连续录入
+  void _resetForm() {
+    setState(() {
+      // 清空输入控制器
+      _profitLossController.clear();
+      _notesController.clear();
+      // 注意：保留股票名称，方便连续录入同一股票
+      // _stockNameController.clear(); // 不清空股票名称
+      
+      // 重置日期为今天
+      _selectedDate = DateTime.now();
+    });
+    
+    // 将焦点设置到金额输入框
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(FocusNode());
+      _profitLossController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _profitLossController.text.length),
+      );
+    });
+  }
+
   /// 根据URL参数初始化盈亏类型
   void _initializeModeFromUrl() {
     final uri = GoRouterState.of(context).uri;
@@ -74,24 +121,71 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
           onPressed: () => _handleBackNavigation(context),
         ),
         actions: [
+          // 快速继续录入按钮
+          IconButton(
+            onPressed: _quickContinueEntry,
+            icon: const Icon(Icons.refresh),
+            tooltip: '清空表单继续录入',
+          ),
           TextButton(
             onPressed: _saveTransaction,
             child: const Text('保存'),
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildSimpleModeContent(),
-            const SizedBox(height: 24),
+      body: Column(
+        children: [
+          // 连续录入提示条
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              border: Border(
+                bottom: BorderSide(color: Colors.blue.withValues(alpha: 0.2)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.flash_on, color: Colors.blue, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  '连续录入模式：保存后可选择继续录入',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue,
+                  ),
+                ),
+                const Spacer(),
+                Icon(Icons.refresh, color: Colors.blue, size: 16),
+                const SizedBox(width: 4),
+                const Text(
+                  '点击刷新图标快速清空',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 表单内容
+          Expanded(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  _buildSimpleModeContent(),
+                  const SizedBox(height: 24),
 
-            // 备注区域
-            _buildNotesSection(),
-          ],
-        ),
+                  // 备注区域
+                  _buildNotesSection(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -165,40 +259,82 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
           ),
         );
 
-        // 询问用户是否跳转到交易记录页面
-        final shouldNavigateToTransactions = await showDialog<bool>(
+        // 优化的连续录入弹窗
+        final userAction = await showDialog<String>(
           context: context,
+          barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: const Text('添加成功'),
-            content: const Text('交易记录已成功添加。是否查看交易记录？'),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 24),
+                const SizedBox(width: 8),
+                const Text('添加成功'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('交易记录已成功添加！'),
+                const SizedBox(height: 12),
+                Text(
+                  '• 股票：${_stockNameController.text.trim()}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                Text(
+                  '• 金额：¥${_profitLossController.text.trim()}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('返回仪表盘'),
+              // 继续录入按钮（主要操作）
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop('continue'),
+                icon: const Icon(Icons.add),
+                label: const Text('继续录入'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('查看交易记录'),
+              const SizedBox(width: 8),
+              // 查看记录按钮
+              TextButton(
+                onPressed: () => Navigator.of(context).pop('view'),
+                child: const Text('查看记录'),
+              ),
+              // 返回按钮
+              TextButton(
+                onPressed: () => Navigator.of(context).pop('back'),
+                child: const Text('返回'),
               ),
             ],
           ),
         );
 
         if (mounted) {
-          // 检查来源页面
-          final uri = GoRouterState.of(context).uri;
-          final fromDashboard = uri.queryParameters['from'] == 'dashboard';
-
-          if (shouldNavigateToTransactions == true) {
-            // 跳转到交易记录页面
-            context.go('/transactions');
-          } else {
-            // 根据来源返回相应页面
-            if (fromDashboard) {
-              context.go('/dashboard');
-            } else {
+          // 处理用户选择的操作
+          switch (userAction) {
+            case 'continue':
+              // 继续录入：清空表单，保持在当前页面
+              _resetForm();
+              break;
+            case 'view':
+              // 查看记录：跳转到交易记录页面
               context.go('/transactions');
-            }
+              break;
+            case 'back':
+            default:
+              // 返回：根据来源返回相应页面
+              final uri = GoRouterState.of(context).uri;
+              final fromDashboard = uri.queryParameters['from'] == 'dashboard';
+              if (fromDashboard) {
+                context.go('/dashboard');
+              } else {
+                context.go('/transactions');
+              }
+              break;
           }
         }
       }
