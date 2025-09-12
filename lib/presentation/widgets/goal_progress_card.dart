@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/models/investment_goal.dart';
+import '../../core/utils/number_formatter.dart';
 import '../providers/investment_goal_provider.dart';
 import 'goal_setting_dialog.dart';
 
@@ -137,7 +138,7 @@ class GoalProgressCard extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '¥${currentValue.toStringAsFixed(0)}',
+              NumberFormatter.formatCurrency(currentValue, showSign: false),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: color,
@@ -202,7 +203,7 @@ class GoalProgressCard extends ConsumerWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '目标 ¥${targetValue.toStringAsFixed(0)}',
+                            '目标 ${NumberFormatter.formatCurrency(targetValue, showSign: false)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: progressColor,
                               fontWeight: FontWeight.w600,

@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../data/models/transaction.dart';
 import '../../data/services/transaction_stats_service.dart';
+import '../../core/utils/number_formatter.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/color_theme_provider.dart';
 
@@ -185,7 +186,9 @@ class HeroStatsSection extends ConsumerWidget {
                   Expanded(
                     child: _SecondaryStatItem(
                       label: isFiltered ? '总亏损' : '胜率',
-                      value: isFiltered ? '-${stats.totalLoss.toStringAsFixed(2)}' : '${stats.winRate.toStringAsFixed(1)}%',
+                      value: isFiltered 
+                        ? NumberFormatter.formatCurrency(stats.totalLoss, showSign: true)
+                        : NumberFormatter.formatPercentage(stats.winRate),
                       icon: isFiltered ? LucideIcons.minus : LucideIcons.target,
                       color: isFiltered ? Colors.red : theme.colorScheme.secondary,
                     ),
@@ -193,7 +196,9 @@ class HeroStatsSection extends ConsumerWidget {
                   Expanded(
                     child: _SecondaryStatItem(
                       label: isFiltered ? '胜率' : 'ROI',
-                      value: isFiltered ? '${stats.winRate.toStringAsFixed(1)}%' : '${stats.roi.toStringAsFixed(2)}%',
+                      value: isFiltered 
+                        ? NumberFormatter.formatPercentage(stats.winRate)
+                        : NumberFormatter.formatPercentage(stats.roi, decimalPlaces: 2),
                       icon: isFiltered ? LucideIcons.target : LucideIcons.percent,
                       color: isFiltered ? theme.colorScheme.secondary : colors.getColorByValue(stats.roi),
                     ),
@@ -201,7 +206,7 @@ class HeroStatsSection extends ConsumerWidget {
                   Expanded(
                     child: _SecondaryStatItem(
                       label: '股票数',
-                      value: '${stats.uniqueStocks}',
+                      value: NumberFormatter.formatInteger(stats.uniqueStocks),
                       icon: LucideIcons.pieChart,
                       color: theme.colorScheme.tertiary,
                     ),
@@ -209,7 +214,7 @@ class HeroStatsSection extends ConsumerWidget {
                   Expanded(
                     child: _SecondaryStatItem(
                       label: '交易笔数',
-                      value: '${stats.totalTransactions}',
+                      value: NumberFormatter.formatInteger(stats.totalTransactions),
                       icon: LucideIcons.receipt,
                       color: theme.colorScheme.outline,
                     ),
@@ -348,7 +353,7 @@ class _MainStatCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            _formatCurrency(value),
+            NumberFormatter.formatCurrency(value),
             style: theme.textTheme.headlineSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.bold,
@@ -358,19 +363,6 @@ class _MainStatCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatCurrency(double value) {
-    final absValue = value.abs();
-    final sign = value >= 0 ? '+' : '-';
-    
-    if (absValue >= 10000) {
-      return '$sign${(absValue / 10000).toStringAsFixed(2)}万';
-    } else if (absValue >= 1000) {
-      return '$sign${(absValue / 1000).toStringAsFixed(2)}k';
-    } else {
-      return '$sign${absValue.toStringAsFixed(2)}';
-    }
   }
 }
 

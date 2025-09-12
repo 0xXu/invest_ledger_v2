@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../data/models/transaction.dart';
+import '../../core/utils/number_formatter.dart';
 import '../providers/color_theme_provider.dart';
 
 class ProfitLossRecordCard extends ConsumerWidget {
@@ -131,7 +132,7 @@ class ProfitLossRecordCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${isProfit ? '+' : '-'}¥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                          NumberFormatter.formatCurrency(transaction.profitLoss.toDouble()),
                           style: theme.textTheme.titleLarge?.copyWith(
                             color: profitColor,
                             fontWeight: FontWeight.bold,
@@ -295,7 +296,7 @@ class ProfitLossRecordCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '¥${transaction.profitLoss.abs().toStringAsFixed(2)}',
+                NumberFormatter.formatCurrency(transaction.profitLoss.toDouble(), showSign: false),
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: Colors.grey,
                   fontWeight: FontWeight.bold,

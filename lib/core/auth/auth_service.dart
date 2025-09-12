@@ -294,7 +294,7 @@ class AuthService extends StateNotifier<AppAuthState> {
     try {
       await _client.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'https://cosmic-pixie-347a3c.netlify.app/callback?type=recovery&email=${Uri.encodeComponent(email)}',
+        redirectTo: 'https://cosmic-pixie-347a3c.netlify.app/reset-password',
       );
     } catch (e) {
       rethrow;

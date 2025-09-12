@@ -53,21 +53,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-
-      GoRoute(
-        path: '/auth/reset-password',
-        name: 'reset-password',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          final email = extra['email'] as String;
-          final token = extra['token'] as String;
-
-          return ResetPasswordScreen(
-            email: email,
-            token: token,
-          );
-        },
-      ),
       ShellRoute(
         builder: (context, state, child) => AuthGuard(child: MainLayout(child: child)),
         routes: [
