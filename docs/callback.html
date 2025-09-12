@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投资记账本 - 邮箱验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            margin: 20px;
+            min-height: 400px;
+            position: relative;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 16px;
+            font-size: 28px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+        .app-name {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .instructions {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 8px 0;
+        }
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            line-height: 24px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        /* 验证动画样式 */
+        .verifying {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 30px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .dots {
+            display: inline-block;
+        }
+        
+        .dots::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        /* 成功动画 */
+        .success-icon {
+            font-size: 80px;
+            color: #28a745;
+            animation: bounceIn 0.6s ease-in;
+        }
+        
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        /* 失败动画 */
+        .error-icon {
+            font-size: 80px;
+            color: #dc3545;
+            animation: shakeX 0.6s ease-in-out;
+        }
+        
+        @keyframes shakeX {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* 淡入动画 */
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 调试信息样式 */
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <!-- 初始内容为验证中状态 -->
+        <div class="verifying">
+            <div class="spinner"></div>
+            <h1>正在验证邮箱<span class="dots"></span></h1>
+            <p>请稍候，我们正在处理您的验证请求</p>
+        </div>
+    </div>
+
+    <script>
+        // 自动处理 Supabase 的确认参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        const code = urlParams.get('code'); // Supabase 密码重置使用 code 参数
+        const token = urlParams.get('token') || hashParams.get('access_token');
+        const type = urlParams.get('type') || hashParams.get('type');
+        const email = urlParams.get('email');
+        const error = urlParams.get('error') || hashParams.get('error');
+        const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+        
+        // 调试信息
+        console.log('=== 调试信息 ===');
+        console.log('URL:', window.location.href);
+        console.log('页面参数:', { code, token, type, email, error, errorDescription });
+        console.log('条件检查:', {
+            hasCodeOrToken: !!(code || token),
+            isRecovery: type === 'recovery',
+            hasEmail: !!email,
+            shouldProcess: !!(code || token) && type === 'recovery' && !!email
+        });
+        
+        // 延迟处理，让用户看到验证动画
+        setTimeout(() => {
+            const container = document.getElementById('container');
+            
+            if (error) {
+                // 显示错误页面
+                showErrorPage(container, error, errorDescription);
+            } else if ((code || token) && type === 'recovery' && email) {
+                // 显示成功页面并处理密码重置
+                showSuccessPage(container, code || token, email);
+            } else {
+                // 显示参数错误页面
+                showParameterErrorPage(container);
+            }
+        }, 2000); // 2秒验证动画
+        
+        function showErrorPage(container, error, errorDescription) {
+            console.error('验证错误:', error, errorDescription);
+            
+            let errorMessage = '验证失败';
+            let instructions = '请重新发送重置邮件';
+            
+            if (error === 'access_denied' && errorDescription && errorDescription.includes('expired')) {
+                errorMessage = '邮件链接已过期';
+                instructions = '邮件链接有效期为1小时，请返回应用重新发送重置邮件';
+            }
+            
+            container.innerHTML = `
+                <div class="fade-in">
+                    <div class="error-icon">❌</div>
+                    <h1>${errorMessage}</h1>
+                    <p style="color: #dc3545;">${decodeURIComponent(errorDescription || '').replace(/\+/g, ' ')}</p>
+                    
+                    <div class="instructions">
+                        <h3>解决方案：</h3>
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            ${instructions}
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <button class="btn" onclick="openAppToLogin()">
+                                打开应用重新操作
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="debug-info">
+                        <strong>错误详情：</strong><br>
+                        错误类型: ${error}<br>
+                        错误描述: ${errorDescription}<br>
+                        邮箱: ${email || 'null'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showSuccessPage(container, verificationCode, email) {
+            console.log('✅ 开始处理密码重置:', { email, hasCode: !!code, hasToken: !!token });
+            
+            const deepLink = `investledger://auth/reset-password?code=${encodeURIComponent(verificationCode)}&email=${encodeURIComponent(email)}`;
+            console.log('🔗 尝试打开深度链接:', deepLink);
+            
+            // 检测设备类型
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // 移动设备：尝试打开深度链接
+                window.location.href = deepLink;
+            }
+            
+            container.innerHTML = `
+                <div class="fade-in">
+                    <div class="success-icon">✅</div>
+                    <h1>验证成功！</h1>
+                    <p>邮箱验证已完成${isMobile ? '，正在为您打开应用' : ''}<span class="dots"></span></p>
+                    
+                    <div class="instructions">
+                        <h3>${isMobile ? '如果应用没有自动打开：' : '接下来的步骤：'}</h3>
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            ${isMobile ? 
+                                '<button class="btn" onclick="openApp()">点击打开投资记账本</button>' :
+                                '打开手机上的投资记账本应用'
+                            }
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            ${isMobile ? '或手动返回应用并' : ''}使用邮箱 <strong>${email}</strong> 和新密码登录
+                        </div>
+                        ${!isMobile ? `
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <button class="btn btn-outline" onclick="copyEmailToClipboard('${email}')">
+                                复制邮箱地址
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="debug-info">
+                        <strong>调试信息：</strong><br>
+                        设备类型: ${isMobile ? '移动设备' : '桌面端'}<br>
+                        邮箱: ${email}<br>
+                        验证码: ${verificationCode.substring(0, 8)}...<br>
+                        ${isMobile ? `深度链接: ${deepLink.substring(0, 50)}...` : '桌面端不支持深度链接'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showParameterErrorPage(container) {
+            console.log('❌ 条件不匹配，显示参数错误页面');
+            
+            container.innerHTML = `
+                <div class="fade-in">
+                    <div class="error-icon">⚠️</div>
+                    <h1>链接参数错误</h1>
+                    <p>邮件链接缺少必要的验证参数</p>
+                    
+                    <div class="instructions">
+                        <h3>可能的原因：</h3>
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            邮件链接不完整或已损坏
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <button class="btn" onclick="openAppToLogin()">
+                                返回应用重新操作
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="debug-info">
+                        <strong>调试信息：</strong><br>
+                        Code: ${code || 'null'}<br>
+                        Type: ${type || 'null'}<br>
+                        Email: ${email || 'null'}<br>
+                        Should Process: ${!!(code || token) && type === 'recovery' && !!email}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 手动打开应用函数
+        function openApp() {
+            const code = urlParams.get('code');
+            const token = urlParams.get('token') || hashParams.get('access_token');
+            const email = urlParams.get('email');
+            const verificationCode = code || token;
+            
+            if (verificationCode && email) {
+                const deepLink = `investledger://auth/reset-password?code=${encodeURIComponent(verificationCode)}&email=${encodeURIComponent(email)}`;
+                window.location.href = deepLink;
+            }
+        }
+        
+        // 打开应用到登录页面
+        function openAppToLogin() {
+            window.location.href = 'investledger://auth/login';
+        }
+        
+        // 复制邮箱到剪贴板
+        function copyEmailToClipboard(email) {
+            navigator.clipboard.writeText(email).then(function() {
+                // 临时修改按钮文本
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '已复制！';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('复制失败:', err);
+                // 回退方案：显示邮箱让用户手动复制
+                alert(`请手动复制邮箱：${email}`);
+            });
+        }
+    </script>
+</body>
+</html>
